@@ -1,1 +1,581 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PAWCARE DEMO</title><style>body{font-family:sans-serif;background:#eef6f2;padding:16px;color:#153f36}main{max-width:450px;margin:auto}section{background:white;padding:20px;margin:15px 0;border-radius:16px}button,input,select,textarea{display:block;width:100%;box-sizing:border-box;padding:13px;margin:9px 0;font-size:16px}button{background:#176b58;color:white;border:0;border-radius:10px}</style></head><body><main><h1>🐾 PAWCARE</h1><p>ペット健康管理デモ</p><section><h2>ペット登録</h2><input id="pet" placeholder="ペットの名前"><button onclick="localStorage.setItem('pet',document.getElementById('pet').value);alert('保存しました')">登録する</button></section><section><h2>健康記録</h2><select id="event"><option>ごはん</option><option>吐き戻し</option><option>嘔吐</option><option>排泄</option><option>服薬</option></select><textarea id="memo" placeholder="メモ"></textarea><button onclick="document.getElementById('history').textContent=new Date().toLocaleString('ja-JP')+' '+document.getElementById('event').value+' '+document.getElementById('memo').value">記録する</button><p id="history"></p></section><section><h2>問診デモ</h2><button onclick="alert('獣医師へご相談ください。これは診断ではありません。')">食欲がない</button><button onclick="alert('緊急症状の可能性があります。直ちに動物病院へ連絡してください。')">呼吸が苦しそう</button></section><p>※獣医師監修前のデモ。診断には使えません。</p></main></body></html>
+&lt;!DOCTYPE html&gt;
+&lt;html lang="ja"&gt;
+&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;meta name="viewport" content="width=device-width,initial-scale=1"&gt;
+&lt;title&gt;PAWCARE デモ&lt;/title&gt;
+&lt;style&gt;
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f7f4;color:#1a3c34;min-height:100vh;padding-bottom:70px}
+h1,h2,h3{color:#0f5132}
+.app-header{background:linear-gradient(135deg,#198754,#0f5132);color:#fff;padding:20px;text-align:center;border-radius:0 0 24px 24px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.app-header h1{font-size:28px;margin-bottom:4px}
+.app-header p{font-size:13px;opacity:0.9}
+.tab-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,0.1);z-index:100}
+.tab-btn{flex:1;padding:12px 0;border:none;background:none;font-size:12px;color:#6c757d;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:color 0.2s}
+.tab-btn.active{color:#198754;font-weight:700}
+.tab-btn .icon{font-size:22px}
+.container{max-width:500px;margin:0 auto;padding:0 16px}
+.section{display:none}
+.section.active{display:block}
+.card{background:#fff;border-radius:16px;padding:20px;margin:12px 0;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.card h2{font-size:18px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+label{display:block;font-size:13px;font-weight:600;color:#495057;margin:8px 0 4px}
+input,select,textarea{width:100%;padding:12px;border:2px solid #dee2e6;border-radius:10px;font-size:15px;transition:border-color 0.2s;background:#fff}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#198754}
+textarea{resize:vertical;min-height:60px}
+.btn{padding:12px 20px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;width:100%;margin:6px 0}
+.btn-primary{background:#198754;color:#fff}
+.btn-primary:hover{background:#157347}
+.btn-danger{background:#dc3545;color:#fff}
+.btn-danger:hover{background:#b02a37}
+.btn-secondary{background:#6c757d;color:#fff}
+.btn-secondary:hover{background:#5a6268}
+.btn-small{padding:8px 14px;font-size:13px;width:auto;display:inline-block}
+.pet-card{border-left:4px solid #198754;margin-bottom:12px}
+.pet-card .pet-header{display:flex;justify-content:space-between;align-items:center}
+.pet-card .pet-name{font-size:17px;font-weight:700;color:#0f5132}
+.pet-card .pet-info{font-size:13px;color:#6c757d;margin-top:4px}
+.pet-actions{display:flex;gap:6px;margin-top:8px}
+.log-item{padding:10px 0;border-bottom:1px solid #f0f0f0}
+.log-item:last-child{border-bottom:none}
+.log-item .log-time{font-size:12px;color:#6c757d}
+.log-item .log-category{display:inline-block;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#fff;margin:4px 4px 4px 0}
+.cat-meal{background:#198754}.cat-water{background:#0dcaf0}.cat-vomit{background:#dc3545}.cat-stool{background:#fd7e14}.cat-urination{background:#6610f2}.cat-walk{background:#0dcaf0}.cat-medicine{background:#6f42c1}.cat-weight{background:#e83e8c}
+.questionnaire-item{background:#f8f9fa;border-radius:10px;padding:12px;margin:8px 0}
+.check-group{display:flex;align-items:center;gap:8px;margin:8px 0}
+.check-group input[type=checkbox]{width:auto}
+.tag{display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.tag-danger{background:#f8d7da;color:#842029}.tag-success{background:#d1e7dd;color:#0f5132}.tag-warning{background:#fff3cd;color:#664d03}
+.empty-msg{text-align:center;color:#6c757d;padding:24px;font-size:14px}
+.disclaimer{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:12px;font-size:12px;color:#664d03;margin:16px 0;text-align:center}
+.symptom-list{max-height:200px;overflow-y:auto}
+.memo-box{background:#e9ecef;padding:12px;border-radius:8px;font-size:13px;margin:8px 0}
+.hidden{display:none}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:400px;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:16px}
+.form-group{margin-bottom:12px}
+.result-box{background:#d1e7dd;padding:16px;border-radius:10px;margin:12px 0;line-height:1.6}
+.result-box h4{color:#0f5132;margin-bottom:8px}
+.result-box.emergency{background:#f8d7da}
+.result-box p{margin:4px 0}
+.result-box ul{margin:8px 0 8px 16px}
+.copy-btn{background:#198754;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:8px}
+.copy-btn:hover{background:#157347}
+@media(max-width:480px){.app-header h1{font-size:24px}.app-header p{font-size:12px}}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class="app-header"&gt;
+&lt;h1&gt;🐾 PAWCARE&lt;/h1&gt;
+&lt;p&gt;ペット健康管理デモ - 獣医師監修前の演示&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class="container"&gt;
+&lt;!-- ペット管理 --&gt;
+&lt;div id="sec-pets" class="section active"&gt;
+&lt;div class="card"&gt;
+&lt;h2&gt;🐾 宠物管理&lt;/h2&gt;
+&lt;label for="petType"&gt;種類&lt;/label&gt;
+&lt;select id="petType"&gt;&lt;option value="dog"&gt;🐕 犬&lt;/option&gt;&lt;option value="cat"&gt;🐈 猫&lt;/option&gt;&lt;option value="other"&gt;🐾 その他&lt;/option&gt;&lt;/select&gt;
+&lt;label for="petBreed"&gt;品種&lt;/label&gt;
+&lt;input id="petBreed" placeholder="例：柴犬 / ポメラニアン / ミンクレッド&quot;&gt;
+&lt;label for="petName"&gt;名前&lt;/label&gt;
+&lt;input id="petName" placeholder="ペットの名前"&gt;
+&lt;label for="petBirth"&gt;生年月日&lt;/label&gt;
+&lt;input id="petBirth" type="date"&gt;
+&lt;label for="petWeight"&gt;体重(kg)&lt;/label&gt;
+&lt;input id="petWeight" type="number" step="0.1" min="0" placeholder="例：5.2"&gt;
+&lt;button class="btn btn-primary" onclick="addPet()"&gt;＋ 登録する&lt;/button&gt;
+&lt;/div&gt;
+&lt;div id="petList"&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- 健康記録 --&gt;
+&lt;div id="sec-log" class="section"&gt;
+&lt;div class="card"&gt;
+&lt;h2&gt;📋 日課記録&lt;/h2&gt;
+&lt;label for="logPet"&gt;ペットを選択&lt;/label&gt;
+&lt;select id="logPet"&gt;&lt;option&gt;-- 選択 --&lt;/option&gt;&lt;/select&gt;
+&lt;label for="logCategory"&gt;カテゴリ&lt;/label&gt;
+&lt;select id="logCategory"&gt;&lt;option value="meal"&gt;🍽️ ご飯&lt;/option&gt;&lt;option value="water"&gt;💧 飲水&lt;/option&gt;&lt;option value="vomit"&gt;🤮 嘔吐&lt;/option&gt;&lt;option value="stool"&gt;💩 排泄&lt;/option&gt;&lt;option value="urination"&gt;🚽 排尿&lt;/option&gt;&lt;option value="walk"&gt;🚶 散歩&lt;/option&gt;&lt;option value="medicine"&gt;💊 服薬&lt;/option&gt;&lt;option value="weight"&gt;⚖️ 体重&lt;/option&gt;&lt;/select&gt;
+&lt;label for="logNote"&gt;メモ&lt;/label&gt;
+&lt;textarea id="logNote" placeholder="観察内容など..."&gt;&lt;/textarea&gt;
+&lt;button class="btn btn-primary" onclick="addLog()"&gt;記録する&lt;/button&gt;
+&lt;/div&gt;
+&lt;div class="card"&gt;
+&lt;h2&gt;📜 記録履歴&lt;/h2&gt;
+&lt;label for="logPetFilter"&gt;ペットでフィルター&lt;/label&gt;
+&lt;select id="logPetFilter" onchange="renderLogs()"&gt;&lt;option value="all"&gt;全部&lt;/option&gt;&lt;/select&gt;
+&lt;div id="logList"&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- 問診 --&gt;
+&lt;div id="sec-symptom" class="section"&gt;
+&lt;div class="card"&gt;
+&lt;h2&gt;❓ 症状問診&lt;/h2&gt;
+&lt;label for="symptomName"&gt;症状&lt;/label&gt;
+&lt;select id="symptomName"&gt;
+&lt;option value=""&gt;-- 選択 --&lt;/option&gt;
+&lt;option value="食欲低下"&gt;食欲が落ちた&lt;/option&gt;
+&lt;option value="嘔吐"&gt;嘔吐している&lt;/option&gt;
+&lt;option value="下痢"&gt;下痢をしている&lt;/option&gt;
+&lt;option value="咳・くしゃみ"&gt;咳・くしゃみ&lt;/option&gt;
+&lt;option value="呼吸困難"&gt;呼吸が荒い&lt;/option&gt;
+&lt;option value="元気のなさ"&gt;元気がない&lt;/option&gt;
+&lt;option value="皮膚の異常"&gt;皮膚の赤みや脱毛&lt;/option&gt;
+&lt;option value="耳の臭い"&gt;耳の臭い・かゆみ&lt;/option&gt;
+&lt;option value="目やに"&gt;目やにが増えた&lt;/option&gt;
+&lt;option value="跛行"&gt;足を引摺っている&lt;/option&gt;
+&lt;option value="その他" id="symptomOtherOpt"&gt;その他&lt;/option&gt;
+&lt;/select&gt;
+&lt;input id="symptomOther" placeholder="具体的な症状" style="display:none;margin-top:4px"&gt;
+&lt;label for="symptomDuration"&gt;期間&lt;/label&gt;
+&lt;select id="symptomDuration"&gt;
+&lt;option value="1日未満"&gt;1日未満&lt;/option&gt;
+&lt;option value="1-3日"&gt;1〜3日&lt;/option&gt;
+&lt;option value="3-7日"&gt;3〜7日&lt;/option&gt;
+&lt;option value="1週間以上"&gt;1週間以上&lt;/option&gt;
+&lt;/select&gt;
+&lt;label class="check-group"&gt;&lt;input type="checkbox" id="symptomRedFlag"&gt;🚩 危険な症状が含まれる&lt;/label&gt;
+&lt;button class="btn btn-primary" onclick="analyzeSymptom()"&gt;分析する&lt;/button&gt;
+&lt;/div&gt;
+&lt;div id="symptomResult"&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- 問診記録 --&gt;
+&lt;div id="sec-history" class="section"&gt;
+&lt;div class="card"&gt;
+&lt;h2&gt;📑 問診履歴&lt;/h2&gt;
+&lt;div id="symptomLogList"&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="disclaimer"&gt;
+&lt;strong&gt;⚠️ 免責事項&lt;/strong&gt;&lt;br&gt;
+このアプリは獣医師監修前の演示です。診断や治療の代替にはなりません。異常が見られた場合は直ちに動物病院を受診してください。
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- 編集モーダル --&gt;
+&lt;div id="editModal" class="modal-overlay hidden"&gt;
+&lt;div class="modal"&gt;
+&lt;h3&gt;📝 記録を編集&lt;/h2&gt;
+&lt;label for="editCategory"&gt;カテゴリ&lt;/label&gt;
+&lt;select id="editCategory"&gt;&lt;option value="meal"&gt;🍽️ ご飯&lt;/option&gt;&lt;option value="water"&gt;💧 飲水&lt;/option&gt;&lt;option value="vomit"&gt;🤮 嘔吐&lt;/option&gt;&lt;option value="stool"&gt;💩 排泄&lt;/option&gt;&lt;option value="urination"&gt;🚽 排尿&lt;/option&gt;&lt;option value="walk"&gt;🚶 散歩&lt;/option&gt;&lt;option value="medicine"&gt;💊 服薬&lt;/option&gt;&lt;option value="weight"&gt;⚖️ 体重&lt;/option&gt;&lt;/select&gt;
+&lt;label for="editNote"&gt;メモ&lt;/label&gt;
+&lt;textarea id="editNote" placeholder="観察内容など..."&gt;&lt;/textarea&gt;
+&lt;div style="display:flex;gap:8px;margin-top:12px"&gt;
+&lt;button class="btn btn-primary" onclick="saveEdit()"&gt;保存する&lt;/button&gt;
+&lt;button class="btn btn-secondary" onclick="closeModal()"&gt;キャンセル&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- ナビゲーション --&gt;
+&lt;nav class="tab-nav"&gt;
+&lt;button class="tab-btn active" onclick="showTab('sec-pets',this)"&gt;&lt;span class="icon"&gt;🐾&lt;/span&gt;ペット&lt;/button&gt;
+&lt;button class="tab-btn" onclick="showTab('sec-log',this)"&gt;&lt;span class="icon"&gt;📋&lt;/span&gt;記録&lt;/button&gt;
+&lt;button class="tab-btn" onclick="showTab('sec-symptom',this)"&gt;&lt;span class="icon"&gt;❓&lt;/span&gt;問診&lt;/button&gt;
+&lt;button class="tab-btn" onclick="showTab('sec-history',this)"&gt;&lt;span class="icon"&gt;📑&lt;/span&gt;履歴&lt;/button&gt;
+&lt;/nav&gt;
+
+&lt;script&gt;
+// ==================== DATA LAYER ====================
+const STORAGE_KEYS = {
+  pets: 'pawcare_pets',
+  logs: 'pawcare_logs',
+  symptoms: 'pawcare_symptoms'
+};
+
+function loadData(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; }
+  catch { return []; }
+}
+
+function saveData(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ==================== TAB NAVIGATION ====================
+function showTab(sectionId, btn) {
+  document.querySelectorAll('.section').forEach(s =&gt; s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b =&gt; b.classList.remove('active'));
+  document.getElementById(sectionId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ==================== PET MANAGEMENT ====================
+function addPet() {
+  const type = document.getElementById('petType').value;
+  const breed = document.getElementById('petBreed').value.trim();
+  const name = document.getElementById('petName').value.trim();
+  const birth = document.getElementById('petBirth').value;
+  const weight = document.getElementById('petWeight').value;
+
+  if (!name) { alert('名前を入力してください'); return; }
+
+  const pets = loadData(STORAGE_KEYS.pets);
+  pets.push({
+    id: Date.now(),
+    type, breed, name,
+    birth,
+    weight: weight ? parseFloat(weight) : null,
+    createdAt: new Date().toISOString()
+  });
+  saveData(STORAGE_KEYS.pets, pets);
+
+  // Reset form
+  document.getElementById('petName').value = '';
+  document.getElementById('petBreed').value = '';
+  document.getElementById('petBirth').value = '';
+  document.getElementById('petWeight').value = '';
+
+  renderPets();
+  renderLogPetSelect();
+  alert('ペットを登録しました：' + name);
+}
+
+function deletePet(id) {
+  if (!confirm('このペットを削除しますか？関連する記録も削除されます。')) return;
+  let pets = loadData(STORAGE_KEYS.pets);
+  pets = pets.filter(p =&gt; p.id !== id);
+  saveData(STORAGE_KEYS.pets, pets);
+
+  // Also delete related logs
+  let logs = loadData(STORAGE_KEYS.logs);
+  logs = logs.filter(l =&gt; l.petId !== id);
+  saveData(STORAGE_KEYS.logs, logs);
+
+  let symptoms = loadData(STORAGE_KEYS.symptoms);
+  symptoms = symptoms.filter(s =&gt; s.petId !== id);
+  saveData(STORAGE_KEYS.symptoms, symptoms);
+
+  renderPets();
+  renderLogPetSelect();
+  renderLogs();
+  renderSymptomLog();
+}
+
+function editPet(id) {
+  const pets = loadData(STORAGE_KEYS.pets);
+  const pet = pets.find(p =&gt; p.id === id);
+  if (!pet) return;
+
+  const newName = prompt('名前:', pet.name);
+  if (newName === null) return;
+  pet.name = newName.trim() || pet.name;
+
+  const newBreed = prompt('品種:', pet.breed);
+  if (newBreed !== null) pet.breed = newBreed.trim();
+
+  const newWeight = prompt('体重(kg):', pet.weight || '');
+  if (newWeight !== null &amp;&amp; newWeight.trim()) {
+    pet.weight = parseFloat(newWeight) || null;
+  }
+
+  saveData(STORAGE_KEYS.pets, pets);
+  renderPets();
+}
+
+function getTypeLabel(type) {
+  const labels = { dog: '🐕 犬', cat: '🐈 猫', other: '🐾 その他' };
+  return labels[type] || type;
+}
+
+function renderPets() {
+  const pets = loadData(STORAGE_KEYS.pets);
+  const container = document.getElementById('petList');
+
+  if (pets.length === 0) {
+    container.innerHTML = '&lt;div class="empty-msg"&gt;ペットが登録されていません&lt;br&gt;&lt;button class="btn btn-secondary" style="margin-top:12px" onclick="showTab(\'sec-pets\',document.querySelector(\'.tab-btn\'))"&gt;新しいペットを登録する&lt;/button&gt;&lt;/div&gt;';
+    return;
+  }
+
+  container.innerHTML = '&lt;h3&gt;登録済みペット (' + pets.length + ')&lt;/h3&gt;';
+  pets.forEach(pet =&gt; {
+    const birthStr = pet.birth ? new Date(pet.birth).toLocaleDateString('ja-JP') : '-';
+    const weightStr = pet.weight ? pet.weight + ' kg' : '-';
+    container.innerHTML += `&lt;div class="card pet-card"&gt;
+      &lt;div class="pet-header"&gt;
+        &lt;span class="pet-name"&gt;${pet.name}&lt;/span&gt;
+        &lt;span class="tag tag-warning"&gt;${getTypeLabel(pet.type)}&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div class="pet-info"&gt;
+        品種：${pet.breed || '-'}&lt;br&gt;
+        生年月日：${birthStr}&lt;br&gt;
+        体重：${weightStr}
+      &lt;/div&gt;
+      &lt;div class="pet-actions"&gt;
+        &lt;button class="btn btn-small btn-secondary" onclick="editPet(${pet.id})"&gt;編集&lt;/button&gt;
+        &lt;button class="btn btn-small btn-danger" onclick="deletePet(${pet.id})"&gt;削除&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;`;
+  });
+}
+
+function renderLogPetSelect() {
+  const pets = loadData(STORAGE_KEYS.pets);
+  const sel = document.getElementById('logPet');
+  const filterSel = document.getElementById('logPetFilter');
+
+  sel.innerHTML = '&lt;option&gt;-- 選択 --&lt;/option&gt;';
+  pets.forEach(p =&gt; {
+    sel.innerHTML += `&lt;option value="${p.id}"&gt;${p.name} (${getTypeLabel(p.type)})&lt;/option&gt;`;
+  });
+
+  filterSel.innerHTML = '&lt;option value="all"&gt;全部&lt;/option&gt;';
+  pets.forEach(p =&gt; {
+    filterSel.innerHTML += `&lt;option value="${p.id}"&gt;${p.name}&lt;/option&gt;`;
+  });
+}
+
+// ==================== DAILY HEALTH LOG ====================
+function addLog() {
+  const petId = document.getElementById('logPet').value;
+  const category = document.getElementById('logCategory').value;
+  const note = document.getElementById('logNote').value.trim();
+
+  if (!petId || petId === '-- 選択 --') { alert('ペットを選択してください'); return; }
+
+  const logs = loadData(STORAGE_KEYS.logs);
+  logs.push({
+    id: Date.now(),
+    petId: parseInt(petId),
+    category,
+    note,
+    timestamp: new Date().toISOString()
+  });
+  saveData(STORAGE_KEYS.logs, logs);
+
+  document.getElementById('logNote').value = '';
+  renderLogs();
+  renderSymptomLog();
+  alert('記録しました：' + getCategoryLabel(category));
+}
+
+function deleteLog(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  let logs = loadData(STORAGE_KEYS.logs);
+  logs = logs.filter(l =&gt; l.id !== id);
+  saveData(STORAGE_KEYS.logs, logs);
+  renderLogs();
+  renderSymptomLog();
+}
+
+function editLog(id) {
+  const logs = loadData(STORAGE_KEYS.logs);
+  const log = logs.find(l =&gt; l.id === id);
+  if (!log) return;
+
+  document.getElementById('editCategory').value = log.category;
+  document.getElementById('editNote').value = log.note;
+  document.getElementById('editModal').classList.remove('hidden');
+  document.getElementById('editModal').dataset.logId = id;
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.add('hidden');
+}
+
+function saveEdit() {
+  const id = parseInt(document.getElementById('editModal').dataset.logId);
+  const logs = loadData(STORAGE_KEYS.logs);
+  const log = logs.find(l =&gt; l.id === id);
+  if (!log) return;
+
+  log.category = document.getElementById('editCategory').value;
+  log.note = document.getElementById('editNote').value.trim();
+
+  saveData(STORAGE_KEYS.logs, logs);
+  closeModal();
+  renderLogs();
+  renderSymptomLog();
+  alert('記録を更新しました');
+}
+
+function getCategoryLabel(cat) {
+  const labels = {
+    meal: '🍽️ ご飯', water: '💧 飲水', vomit: '🤮 嘔吐',
+    stool: '💩 排泄', urination: '🚽 排尿', walk: '🚶 散歩',
+    medicine: '💊 服薬', weight: '⚖️ 体重'
+  };
+  return labels[cat] || cat;
+}
+
+function getCatClass(cat) {
+  return 'cat-' + cat;
+}
+
+function renderLogs() {
+  const logs = loadData(STORAGE_KEYS.logs);
+  const petId = document.getElementById('logPetFilter').value;
+  const container = document.getElementById('logList');
+
+  let filtered = petId === 'all' ? logs : logs.filter(l =&gt; l.petId === parseInt(petId));
+  filtered = filtered.sort((a, b) =&gt; new Date(b.timestamp) - new Date(a.timestamp));
+
+  if (filtered.length === 0) {
+    container.innerHTML = '&lt;div class="empty-msg"&gt;記録がありません&lt;/div&gt;';
+    return;
+  }
+
+  container.innerHTML = '';
+  filtered.forEach(log =&gt; {
+    const pets = loadData(STORAGE_KEYS.pets);
+    const pet = pets.find(p =&gt; p.id === log.petId);
+    const petName = pet ? pet.name : '不明';
+    const timeStr = new Date(log.timestamp).toLocaleString('ja-JP');
+
+    container.innerHTML += `&lt;div class="log-item"&gt;
+      &lt;div style="display:flex;justify-content:space-between;align-items:center"&gt;
+        &lt;span&gt;&lt;span class="log-category ${getCatClass(log.category)}"&gt;${getCategoryLabel(log.category)}&lt;/span&gt; ${petName}&lt;/span&gt;
+        &lt;span class="log-time"&gt;${timeStr}&lt;/span&gt;
+      &lt;/div&gt;
+      ${log.note ? '&lt;p style="margin:6px 0;font-size:14px;color:#495057"&gt;' + log.note + '&lt;/p&gt;' : ''}
+      &lt;div style="display:flex;gap:6px;margin-top:6px"&gt;
+        &lt;button class="btn btn-small btn-secondary" onclick="editLog(${log.id})"&gt;編集&lt;/button&gt;
+        &lt;button class="btn btn-small btn-danger" onclick="deleteLog(${log.id})"&gt;削除&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;`;
+  });
+}
+
+// ==================== SYMPTOM QUESTIONNAIRE ====================
+document.getElementById('symptomName').addEventListener('change', function() {
+  document.getElementById('symptomOther').style.display = this.value === 'その他' ? 'block' : 'none';
+});
+
+function analyzeSymptom() {
+  const symptom = document.getElementById('symptomName').value;
+  const otherSymptom = document.getElementById('symptomOther').value.trim();
+  const duration = document.getElementById('symptomDuration').value;
+  const redFlag = document.getElementById('symptomRedFlag').checked;
+
+  if (!symptom) { alert('症状を選択してください'); return; }
+  const finalSymptom = symptom === 'その他' ? otherSymptom : symptom;
+
+  // Symptom analysis
+  const emergencySymptoms = ['呼吸困難', '痙攣', '意識不明', '大量出血', '異物飲下'];
+  const urgentSymptoms = ['嘔吐', '下痢', '食欲低下', '元気のなさ'];
+  const normalSymptoms = ['咳・くしゃみ', '皮膚の異常', '耳の臭い', '目やに', '跛行', '食欲低下', '元気のなさ'];
+
+  const isEmergency = redFlag || emergencySymptoms.includes(symptom);
+  const isUrgent = urgentSymptoms.includes(symptom) &amp;&amp; !isEmergency;
+
+  let advice = '';
+  let emergencyAdvice = '';
+  let vetMemo = '';
+
+  if (isEmergency) {
+    advice = `【緊急対応】症状「${finalSymptom}」は緊急を要する可能性があります。`;
+    emergencyAdvice = `・直ちに動物病院へ連絡してください&lt;br&gt;・症状が進行する前に救急対応&lt;br&gt;・呼吸が苦しい場合は横向けに寝かせてください&lt;br&gt;・嘔吐や下痢で脱水症状に注意`;
+    vetMemo = `[緊急] ${finalSymptom} | 期間: ${duration} | 危険信号: はい&lt;br&gt;直ちに獣医診察が必要です。`;
+  } else if (isUrgent) {
+    advice = `【注意が必要】症状「${finalSymptom}」は獣医相談をお勧めします。`;
+    emergencyAdvice = `・24時間以内の診察をお勧めします&lt;br&gt;・水分補給を確認してください&lt;br&gt;・食欲と排泄状態を観察してください`;
+    vetMemo = `[要相談] ${finalSymptom} | 期間: ${duration} | 危険信号: いいえ&lt;br&gt;獣医相談をお勧めします。`;
+  } else {
+    advice = `【経過観察】症状「${finalSymptom}」は経過を観察して良いでしょう。`;
+    emergencyAdvice = `・1-2日の経過観察をお勧めします&lt;br&gt;・食事と水分補給を確認&lt;br&gt;・症状が悪化する場合は受診`;
+    vetMemo = `[経過観察] ${finalSymptom} | 期間: ${duration} | 危険信号: いいえ&lt;br&gt;経過観察。悪化時は受診。`;
+  }
+
+  // Save to history
+  const symptoms = loadData(STORAGE_KEYS.symptoms);
+  symptoms.push({
+    id: Date.now(),
+    symptom: finalSymptom,
+    duration,
+    redFlag,
+    isEmergency,
+    advice,
+    emergencyAdvice,
+    vetMemo,
+    timestamp: new Date().toISOString()
+  });
+  saveData(STORAGE_KEYS.symptoms, symptoms);
+
+  // Display result
+  const resultDiv = document.getElementById('symptomResult');
+  resultDiv.innerHTML = `
+    &lt;div class="result-box ${isEmergency ? 'emergency' : ''}"&gt;
+      &lt;h4&gt;🔍 分析結果：${finalSymptom}&lt;/h4&gt;
+      &lt;p&gt;期間：${duration}&lt;/p&gt;
+      &lt;p&gt;危険信号：${redFlag ? '🚩 あり' : 'なし'}&lt;/p&gt;
+      &lt;p&gt;&lt;strong&gt;アドバイス：&lt;/strong&gt;${advice}&lt;/p&gt;
+      ${isEmergency ? '&lt;h4&gt;⚠️ 緊急対応：&lt;/h4&gt;&lt;ul&gt;' + emergencyAdvice.replace(/&lt;br&gt;/g, '').replace(/・/g, '&lt;li&gt;').replace(/;/g, '&lt;/li&gt;') + '&lt;/ul&gt;' : '&lt;p&gt;' + emergencyAdvice + '&lt;/p&gt;'}
+      &lt;hr style="margin:12px 0;border:none;border-top:1px solid #dee2e6"&gt;
+      &lt;h4&gt;📋 獣医メモ：&lt;/h4&gt;
+      &lt;div class="memo-box"&gt;${vetMemo}&lt;/div&gt;
+      &lt;button class="copy-btn" onclick="copyVetMemo()"&gt;📋 メモをコピー&lt;/button&gt;
+    &lt;/div&gt;
+  `;
+
+  // Store current vet memo for copying
+  window._currentVetMemo = vetMemo;
+
+  renderSymptomLog();
+}
+
+function copyVetMemo() {
+  const text = window._currentVetMemo;
+  if (navigator.clipboard &amp;&amp; navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() =&gt; {
+      alert('メモをクリップボードにコピーしました');
+    }).catch(() =&gt; {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  alert('メモをコピーしました');
+}
+
+// ==================== SYMPTOM HISTORY ====================
+function renderSymptomLog() {
+  const symptoms = loadData(STORAGE_KEYS.symptoms);
+  const container = document.getElementById('symptomLogList');
+
+  if (symptoms.length === 0) {
+    container.innerHTML = '&lt;div class="empty-msg"&gt;問診履歴がありません&lt;/div&gt;';
+    return;
+  }
+
+  container.innerHTML = '';
+  symptoms.sort((a, b) =&gt; new Date(b.timestamp) - new Date(a.timestamp)).forEach(sym =&gt; {
+    const timeStr = new Date(sym.timestamp).toLocaleString('ja-JP');
+    container.innerHTML += `&lt;div class="card questionnaire-item"&gt;
+      &lt;div style="display:flex;justify-content:space-between;align-items:center"&gt;
+        &lt;span&gt;🔍 ${sym.symptom}&lt;/span&gt;
+        &lt;span class="log-time"&gt;${timeStr}&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;p style="font-size:13px;margin:6px 0"&gt;期間：${sym.duration} | 危険信号：${sym.redFlag ? '🚩 あり' : 'なし'}&lt;/p&gt;
+      &lt;p style="font-size:13px"&gt;アドバイス：${sym.advice}&lt;/p&gt;
+      &lt;div class="memo-box" style="margin-top:6px"&gt;${sym.vetMemo}&lt;/div&gt;
+      &lt;button class="btn btn-small btn-secondary" style="margin-top:8px" onclick="window._currentVetMemo=\`&lt;div class=\\"memo-box\\"&gt;${sym.vetMemo}&lt;/div&gt;`;
+    fallbackCopy(`);
+    container.innerHTML += '&lt;/button&gt;';
+  });
+}
+
+// ==================== INITIALIZATION ====================
+document.addEventListener('DOMContentLoaded', function() {
+  renderPets();
+  renderLogPetSelect();
+  renderLogs();
+  renderSymptomLog();
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
