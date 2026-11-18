@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.3.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -84,7 +84,7 @@
       logs: [],
       memos: [],
       reminders: [],
-      settings: { activePetId: null, hospital: { name: '', phone: '', note: '' }, lastBackupAt: null }
+      settings: { activePetId: null, hospital: { name: '', phone: '', note: '' }, night: { name: '', phone: '', note: '' }, lastBackupAt: null }
     };
   }
   let db = emptyDb();
@@ -101,6 +101,7 @@
     const s = raw.settings || {};
     base.settings.activePetId = petIds.has(s.activePetId) ? s.activePetId : (base.pets[0] ? base.pets[0].id : null);
     base.settings.hospital = Object.assign(base.settings.hospital, s.hospital || {});
+    base.settings.night = Object.assign(base.settings.night, s.night || {});
     base.settings.lastBackupAt = s.lastBackupAt || null;
     return base;
   }
@@ -304,6 +305,7 @@
     html += '<section class="card pet-hero"><span class="pet-avatar" aria-hidden="true">' + sp.emoji + '</span><div><h1>' + esc(pet.name) + '</h1><p class="muted">' +
       esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div></section>';
 
+    html += preparednessHtml(pet);
     html += '<section class="card"><h2>ワンタップで記録</h2><p class="muted small">押すと今の時刻で記録されます。時刻やメモはあとから修正できます。</p><div class="quick-grid">';
     (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c) => {
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.label) + '</button>';
@@ -319,6 +321,22 @@
 
     html += '<button type="button" class="card action-card" data-nav="interview"><span aria-hidden="true">🩺</span><span><strong>体調が気になるとき</strong><small>症状を順番に入力して、獣医師に伝える問診メモを作成</small></span><span class="chev" aria-hidden="true">›</span></button>';
     return html + localNotice;
+  }
+
+  /* もしもの準備：元気なうちに済ませておくと、いざという時に迷わない */
+  function preparednessHtml(pet) {
+    const backupFresh = db.settings.lastBackupAt && (Date.now() - new Date(db.settings.lastBackupAt).getTime()) < 30 * 86400000;
+    const items = [
+      { done: !!db.settings.hospital.phone, label: 'かかりつけ病院の電話番号', btn: '<button type="button" class="btn ghost small" data-action="editHospital">登録</button>' },
+      { done: !!db.settings.night.phone, label: '夜間・救急の病院の電話番号', btn: '<button type="button" class="btn ghost small" data-action="editHospital" data-kind="night">登録</button>' },
+      { done: !!pet.weight, label: pet.name + 'の体重（薬の量や電話で必ず聞かれます）', btn: '<button type="button" class="btn ghost small" data-action="editPet" data-id="' + esc(pet.id) + '">登録</button>' },
+      { done: !!backupFresh, label: 'データのバックアップ（30日以内）', btn: '<button type="button" class="btn ghost small" data-action="exportJson">保存</button>' }
+    ];
+    const n = items.filter((i) => i.done).length;
+    if (n === items.length) return '';
+    return '<section class="card prep"><div class="row-between"><h2>🧰 もしもの準備</h2><span class="tag">' + n + ' / ' + items.length + '</span></div>' +
+      '<p class="muted small">元気なうちに済ませておくと、いざという時に迷わずに済みます。</p><ul class="prep-list">' +
+      items.map((i) => '<li class="' + (i.done ? 'done' : '') + '"><span aria-hidden="true">' + (i.done ? '✅' : '⬜') + '</span><span class="prep-label">' + esc(i.label) + '</span>' + (i.done ? '' : i.btn) + '</li>').join('') + '</ul></section>';
   }
 
   /* ============================================================
@@ -622,7 +640,10 @@
         break;
       default: {
         const text = buildMemo(a);
+        const pp = getPet(a.petId);
         html += '<p class="muted small">内容を確認し、電話や受付で獣医師に伝える際に使ってください。</p>' +
+          (pp ? '<p class="sub">電話で読み上げるメモ（短い版）</p><pre class="memo phone-script">' + esc(phoneScript(pp, a)) + '</pre>' : '') +
+          '<p class="sub">問診メモ（詳しい版）</p>' +
           '<pre class="memo" id="memoText">' + esc(text) + '</pre>' +
           '<div class="form-actions"><button type="button" class="btn primary block" data-action="copyMemo">メモをコピー</button>' +
           (navigator.share ? '<button type="button" class="btn ghost block" data-action="shareMemo">LINE・メールなどで共有</button>' : '') +
@@ -664,6 +685,33 @@
     if (p.memo) lines.push('持病・メモ：' + p.memo.replace(/\n/g, ' '));
     return lines;
   }
+  /* 電話で病院に伝えるときに、そのまま読み上げられる短い文 */
+  function phoneScript(pet, answers) {
+    const sp = speciesOf(pet.species);
+    const L = [];
+    const basic = [sp.label + (pet.breed && ['ミックス', '不明', 'その他'].indexOf(pet.breed) < 0 ? '（' + pet.breed + '）' : ''), pet.birthday ? ageText(pet.birthday) : '', sexLabel(pet.sex), pet.weight ? '体重' + pet.weight + 'kg' : ''].filter(Boolean).join('、');
+    L.push(pet.name + 'です。' + basic + 'です。');
+    if (pet.memo) L.push('持病・メモ：' + pet.memo.replace(/\n/g, ' ') + '。');
+    let a = answers;
+    if (!a) {
+      const m = latestMemoFor(pet.id);
+      if (m && m.answers && m.createdAt >= toLocalInput(new Date(Date.now() - 48 * 3600 * 1000))) a = m.answers;
+    }
+    if (a) {
+      const sy = (a.symptoms || []).join('、') + (a.symptomOther ? (a.symptoms && a.symptoms.length ? '、' : '') + a.symptomOther : '');
+      if (sy) L.push(sy + 'が' + (a.onset ? a.onset + 'から' : '') + 'あります' + (a.frequency ? '（' + a.frequency + '）' : '') + '。');
+      if (a.appetite || a.water) L.push('食欲は' + (a.appetite || '未確認') + '、水は' + (a.water || '未確認') + 'です。');
+      if (a.energy || a.breathing) L.push('元気は' + (a.energy || '未確認') + '、呼吸は' + (a.breathing || '未確認') + 'です。');
+    }
+    const logs = recentLogs(pet.id, 24);
+    const counts = {};
+    logs.forEach((l) => { counts[l.category] = (counts[l.category] || 0) + 1; });
+    const keys = ['ingest', 'vomit', 'regurgitate', 'stool', 'urine', 'food', 'water', 'medicine'].filter((k) => counts[k]);
+    if (keys.length) L.push('この24時間の記録は、' + keys.map((k) => categoryOf(k).label + counts[k] + '回').join('、') + 'です。');
+    if (!a && !keys.length) L.push('（症状は問診メモを作ると、ここに入ります）');
+    return L.join('\n');
+  }
+
   function buildMemo(a) {
     const p = getPet(a.petId);
     const L = [];
@@ -740,6 +788,13 @@
     } else {
       html += '<p>かかりつけの動物病院を登録しておくと、ここからすぐに電話できます。</p><button type="button" class="btn ghost block" data-action="editHospital">かかりつけ病院を登録する</button>';
     }
+    const nt = db.settings.night;
+    if (nt.phone) {
+      html += '<a class="btn danger-ghost block big night-call" href="tel:' + esc(nt.phone.replace(/[^\d+]/g, '')) + '">🌙 ' + esc(nt.name || '夜間・救急の動物病院') + 'に電話する<small>' + esc(nt.phone) + '</small></a>';
+      if (nt.note) html += '<p class="muted small pre">' + esc(nt.note) + '</p>';
+    } else {
+      html += '<button type="button" class="btn ghost block" data-action="editHospital" data-kind="night">🌙 夜間・救急の病院を登録する</button>';
+    }
     html += '<p class="muted small">診療時間外や受け入れ可否は病院ごとに異なります。<strong>向かう前に必ず電話で確認してください。</strong></p></section>';
 
     html += '<section class="card"><h2>🗺️ 近くの動物病院を探す</h2><p class="muted small">地図アプリで検索します。表示される営業時間などは最新でない場合があります。</p>' +
@@ -748,6 +803,10 @@
 
     html += '<section class="card"><h2>📝 電話で伝えること</h2><ul class="check-list">' +
       '<li>ペットの名前・種類・年齢・体重</li><li>どんな症状が、いつから、何回あったか</li><li>呼吸・意識・歩き方の様子</li><li>食べた可能性のあるもの（パッケージがあれば手元に）</li><li>持病・服用中の薬</li></ul>';
+    if (pet) {
+      html += '<p class="sub">電話で読み上げるメモ</p><pre class="memo phone-script">' + esc(phoneScript(pet)) + '</pre>' +
+        '<button type="button" class="btn ghost block" data-action="copyPhoneScript">読み上げメモをコピー</button>';
+    }
     const latest = db.memos.length ? db.memos[db.memos.length - 1] : null;
     if (latest) {
       html += '<p class="sub">最新の問診メモ（' + esc(fmtDateTime(latest.createdAt)) + '）</p><pre class="memo">' + esc(latest.text) + '</pre>' +
@@ -785,6 +844,10 @@
     html += '<section class="card"><h2>🏥 かかりつけの動物病院</h2>' +
       (h.name || h.phone ? '<p><strong>' + esc(h.name || '名称未登録') + '</strong><br>' + esc(h.phone || '電話番号未登録') + '</p>' + (h.note ? '<p class="muted small pre">' + esc(h.note) + '</p>' : '') : '<p class="muted">未登録です。</p>') +
       '<button type="button" class="btn ghost block" data-action="editHospital">' + (h.name || h.phone ? '編集する' : '登録する') + '</button></section>';
+    const nt = db.settings.night;
+    html += '<section class="card"><h2>🌙 夜間・救急の動物病院</h2><p class="muted small">かかりつけが閉まっている時間に連絡する病院です。元気なうちに調べて登録しておくと安心です。</p>' +
+      (nt.name || nt.phone ? '<p><strong>' + esc(nt.name || '名称未登録') + '</strong><br>' + esc(nt.phone || '電話番号未登録') + '</p>' + (nt.note ? '<p class="muted small pre">' + esc(nt.note) + '</p>' : '') : '<p class="muted">未登録です。</p>') +
+      '<button type="button" class="btn ghost block" data-action="editHospital" data-kind="night">' + (nt.name || nt.phone ? '編集する' : '登録する') + '</button></section>';
 
     html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
@@ -805,9 +868,11 @@
     return html;
   }
 
-  function hospitalFormHtml() {
-    const h = db.settings.hospital;
-    return '<form data-form="hospital"><label>病院名<input name="name" maxlength="60" value="' + esc(h.name) + '" placeholder="例：〇〇動物病院"></label>' +
+  function hospitalFormHtml(kind) {
+    const h = kind === 'night' ? db.settings.night : db.settings.hospital;
+    return '<form data-form="hospital"><input type="hidden" name="kind" value="' + (kind === 'night' ? 'night' : 'hospital') + '">' +
+      (kind === 'night' ? '<p class="muted small">「近くの動物病院を探す」の夜間・救急の検索で見つけた病院を登録できます。受け入れ条件は病院ごとに違うので、事前に電話で確認しておくと安心です。</p>' : '') +
+      '<label>病院名<input name="name" maxlength="60" value="' + esc(h.name) + '" placeholder="例：〇〇動物病院"></label>' +
       '<label>電話番号<input name="phone" type="tel" inputmode="tel" maxlength="20" value="' + esc(h.phone) + '" placeholder="例：03-1234-5678"></label>' +
       '<label>メモ（診療時間・夜間の連絡先など）<textarea name="note" rows="3" maxlength="500">' + esc(h.note) + '</textarea></label>' +
       '<p class="muted small">診療時間は変わることがあります。受診前に病院へご確認ください。</p>' +
@@ -1135,15 +1200,19 @@
     const days = +f.get('range') || 0;
     const hours = (+f.get('expiry') || 3) * 24;
     let memo = '';
+    let q = null;
     if (f.get('memo') && !form.querySelector('.share-memo').hidden) {
-      const m = pendingShareMemo && pet.id === (iv && iv.a.petId) ? pendingShareMemo : (latestMemoFor(pet.id) || {}).text;
-      memo = m || '';
+      const own = pendingShareMemo && pet.id === (iv && iv.a.petId);
+      const lm = latestMemoFor(pet.id) || {};
+      memo = (own ? pendingShareMemo : lm.text) || '';
+      const a = own ? iv.a : lm.answers;
+      if (a) q = { sy: a.symptoms || [], so: a.symptomOther || '', on: a.onset || '', od: a.onsetDetail || '', fr: a.frequency || '', du: a.duration || '', ap: a.appetite || '', wa: a.water || '', en: a.energy || '', br: a.breathing || '' };
     }
     const logs = days ? recentLogs(pet.id, days * 24).slice(0, 120).map((l) => [l.datetime, l.category, l.value || '', (l.memo || '').slice(0, 200)]) : [];
     const payload = {
       v: 1, c: nowLocal(), x: Date.now() + hours * 3600000,
       p: { n: pet.name, s: pet.species, b: pet.breed, bd: pet.birthday, sx: pet.sex, w: pet.weight, m: f.get('profileMemo') ? pet.memo : '' },
-      memo: memo, d: days, l: logs
+      memo: memo, q: q, d: days, l: logs
     };
     const data = await encodePayload(payload);
     const url = location.origin + location.pathname + '#/view/' + data;
@@ -1179,6 +1248,7 @@
     let html = '<section class="card shared-head"><p class="tag">受診用サマリー</p><h1>' + speciesOf(pet.species).emoji + ' ' + esc(pet.name) + '</h1>' +
       '<p class="muted small">作成：' + esc(fmtDateTime(s.c)) + '／表示期限：' + esc(fmtDateTime(toLocalInput(new Date(s.x)))) + '</p>' +
       '<p class="disclaimer">飼い主が PAWCARE に入力した情報です。診断や医学的な判断を含むものではなく、内容の正確性は PAWCARE では確認していません。</p></section>';
+    html += keyPointsHtml(s, pet);
     html += '<section class="card"><h2>ペット情報</h2><dl class="pet-dl">' +
       '<dt>種類</dt><dd>' + esc(speciesOf(pet.species).label + (pet.breed ? '・' + pet.breed : '')) + '</dd>' +
       '<dt>年齢</dt><dd>' + (pet.birthday ? esc(ageText(pet.birthday)) + '（' + esc(pet.birthday.replace(/-/g, '/')) + '生）' : '未登録') + '</dd>' +
@@ -1193,6 +1263,34 @@
     html += '<div class="form-actions no-print"><button type="button" class="btn ghost block" data-action="printView">印刷する</button></div>';
     return html;
   }
+  /* 受診用サマリーの1画面目：獣医師が30秒で読める要点 */
+  function keyPointsHtml(s, pet) {
+    const rows = [];
+    const sp = speciesOf(pet.species);
+    rows.push(['動物', [sp.label + (pet.breed ? '（' + pet.breed + '）' : ''), pet.birthday ? ageText(pet.birthday) : '', sexLabel(pet.sex), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')]);
+    const q = s.q;
+    if (q) {
+      const sy = q.sy.join('、') + (q.so ? (q.sy.length ? '／' : '') + q.so : '');
+      if (sy) rows.push(['主な症状', sy]);
+      if (q.on) rows.push(['いつから', q.on + (q.od ? '（' + q.od + '）' : '')]);
+      if (q.fr) rows.push(['回数', q.fr + (q.du ? '（' + q.du + '）' : '')]);
+      if (q.ap || q.wa) rows.push(['食欲・飲水', (q.ap || '未回答') + '／' + (q.wa || '未回答')]);
+      if (q.en || q.br) rows.push(['元気・呼吸', (q.en || '未回答') + '／' + (q.br || '未回答')]);
+    }
+    if (s.d && s.l.length) {
+      const since = toLocalInput(new Date(Date.now() - 24 * 3600 * 1000));
+      const counts = {};
+      s.l.filter((a) => a[0] >= since).forEach((a) => { counts[a[1]] = (counts[a[1]] || 0) + 1; });
+      const keys = ['ingest', 'vomit', 'regurgitate', 'stool', 'urine', 'food', 'water'].filter((k) => counts[k]);
+      if (keys.length) rows.push(['直近24時間', keys.map((k) => categoryOf(k).label + ' ' + counts[k] + '回').join('・')]);
+      const ws = s.l.filter((a) => a[1] === 'weight' && a[2]).sort((x, y) => (x[0] < y[0] ? -1 : 1));
+      if (ws.length >= 2) rows.push(['体重の変化', ws[0][2] + 'kg（' + fmtShort(ws[0][0]).split(' ')[0] + '）→ ' + ws[ws.length - 1][2] + 'kg（' + fmtShort(ws[ws.length - 1][0]).split(' ')[0] + '）']);
+    }
+    if (pet.memo) rows.push(['持病・メモ', pet.memo]);
+    return '<section class="card key-points"><h2>要点</h2><dl class="kp-dl">' + rows.map((r) => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl>' +
+      (q ? '' : '<p class="muted small">問診メモが含まれていないため、症状の要点は表示していません。</p>') + '</section>';
+  }
+
   /* リンクの中身は第三者が改ざんできるため、型と値を検証してから使う */
   function sanitizeShared(raw) {
     if (!raw || typeof raw !== 'object') return null;
@@ -1207,6 +1305,11 @@
       x: Number.isFinite(raw.x) ? raw.x : 0,
       p: { n: str(p.n, 60) || '（名前なし）', s: str(p.s, 20), b: str(p.b, 60), bd: /^\d{4}-\d{2}-\d{2}$/.test(bd) ? bd : '', sx: str(p.sx, 20), w: num(p.w), m: str(p.m, 1000) },
       memo: str(raw.memo, 6000),
+      q: raw.q && typeof raw.q === 'object' ? {
+        sy: Array.isArray(raw.q.sy) ? raw.q.sy.filter((x) => typeof x === 'string').slice(0, 30).map((x) => x.slice(0, 40)) : [],
+        so: str(raw.q.so, 500), on: str(raw.q.on, 40), od: str(raw.q.od, 200), fr: str(raw.q.fr, 40), du: str(raw.q.du, 200),
+        ap: str(raw.q.ap, 40), wa: str(raw.q.wa, 40), en: str(raw.q.en, 60), br: str(raw.q.br, 60)
+      } : null,
       d: [1, 3, 7, 30].indexOf(+raw.d) >= 0 ? +raw.d : 0,
       l: logs.map((a) => [String(a[0]), str(a[1], 20), num(a[2]), str(a[3], 200)])
     };
@@ -1299,7 +1402,8 @@
     exportCsv: () => exportCsv(filteredLogs()),
     exportAllCsv: () => exportCsv(db.logs),
     exportJson: exportJson,
-    editHospital: () => openSheet('かかりつけの動物病院', hospitalFormHtml()),
+    editHospital: (el) => openSheet(el.dataset.kind === 'night' ? '夜間・救急の動物病院' : 'かかりつけの動物病院', hospitalFormHtml(el.dataset.kind)),
+    copyPhoneScript: () => { const p = activePet(); if (p) copyText(phoneScript(p)); },
     loadSample: loadSample,
     wipe: () => {
       if (!confirm('すべてのペット・記録・問診メモ・設定を削除します。\n先にバックアップを書き出すことをおすすめします。続けますか？')) return;
@@ -1328,7 +1432,7 @@
     shareMemo: () => shareText('PAWCARE 問診メモ', buildMemo(iv.a)),
     saveMemo: () => {
       const p = getPet(iv.a.petId);
-      const memo = { id: uid(), petId: iv.a.petId, petName: p ? p.name : '', createdAt: nowLocal(), summary: iv.a.symptoms.join('、') || iv.a.symptomOther.slice(0, 30), text: buildMemo(iv.a) };
+      const memo = { id: uid(), petId: iv.a.petId, petName: p ? p.name : '', createdAt: nowLocal(), summary: iv.a.symptoms.join('、') || iv.a.symptomOther.slice(0, 30), text: buildMemo(iv.a), answers: Object.assign({}, iv.a, { symptoms: iv.a.symptoms.slice() }) };
       if (commit(() => { db.memos.push(memo); if (db.memos.length > 50) db.memos.shift(); })) { iv.savedId = memo.id; toast('問診メモを保存しました'); rerender(); }
     },
     viewMemo: (el) => {
@@ -1403,7 +1507,8 @@
       const f = new FormData(form);
       const data = { name: String(f.get('name') || '').trim(), phone: String(f.get('phone') || '').trim(), note: String(f.get('note') || '').trim() };
       if (data.phone && !/^[\d+\-() ]{3,20}$/.test(data.phone)) return showFormError(form.querySelector('.form-error'), '電話番号は数字とハイフンで入力してください。');
-      if (commit(() => { db.settings.hospital = data; })) { closeSheet(); toast('保存しました'); rerender(); }
+      const kind = f.get('kind') === 'night' ? 'night' : 'hospital';
+      if (commit(() => { db.settings[kind] = data; })) { closeSheet(); toast('保存しました'); rerender(); }
     }
   });
 
