@@ -346,3 +346,27 @@ body[data-view=view] { padding-bottom: 24px; }
 .toxic-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
 .toxic-row input { margin-top: 0 !important; }
 .toxic-row .btn { flex: 0 0 auto; }
+
+/* v1.5 もしもカード・前回から・誤食メモ・受診記録・引き継ぎ */
+.quick-btn .qs { display: block; font-size: .6rem; font-weight: 500; color: var(--muted); line-height: 1.25; margin-top: 2px; }
+.quick-grid { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); }
+.quick-btn { min-height: 84px; }
+.pet-hero { flex-wrap: wrap; }
+.hero-card-btn { margin-left: auto; }
+.moshimo { border: 2px solid #d23f3f; }
+.moshimo-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px; }
+.moshimo-head span { color: #d23f3f; font-weight: 700; font-size: .9rem; }
+.moshimo-head strong { font-size: 1.3rem; }
+.cf-empty { color: #a9b6b2 !important; font-weight: 500 !important; }
+.card-tel { white-space: nowrap; color: var(--brand-dark); font-weight: 700; }
+.med-row { border: 1px dashed var(--line); border-radius: 10px; padding: 8px; margin-bottom: 8px; display: grid; gap: 6px; }
+.med-row input { margin-top: 0 !important; }
+.choice-list.cols2 { grid-template-columns: 1fr 1fr; }
+.ref-note { background: #f1f6f4; border-radius: 10px; padding: 8px 10px; font-size: .88rem; }
+.alert.small { font-size: .85rem; padding: 10px 12px; }
+.import-head h1 { font-size: 1.15rem; margin: 6px 0 2px; }
+body[data-view=cardview] .bottom-nav, body[data-view=cardview] .header-emergency { display: none; }
+body[data-view=cardview] { padding-bottom: 24px; }
+@media print { .moshimo { border-width: 1px; max-width: 148mm; } }
+.kp-dl { grid-template-columns: 7.5em 1fr; }
+.kp-dl dd { white-space: pre-line; }
