@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.2.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -305,7 +305,7 @@
       esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div></section>';
 
     html += '<section class="card"><h2>ワンタップで記録</h2><p class="muted small">押すと今の時刻で記録されます。時刻やメモはあとから修正できます。</p><div class="quick-grid">';
-    D.CATEGORIES.forEach((c) => {
+    (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c) => {
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.label) + '</button>';
     });
     html += '</div><button type="button" class="btn ghost block" data-action="newLog">日時・メモを入力して記録</button></section>';
@@ -490,7 +490,10 @@
   function petFormHtml(p) {
     let html = '<form data-form="pet" novalidate><input type="hidden" name="id" value="' + esc(p.id || '') + '">';
     html += '<label>名前<span class="req">必須</span><input name="name" required maxlength="30" value="' + esc(p.name || '') + '" placeholder="例：ポチ" autocomplete="off"></label>';
-    html += '<label>動物の種類<select name="species" data-change="species">' + optionsHtml(D.SPECIES, p.species || 'dog') + '</select></label>';
+    const sp0 = p.species || 'dog';
+    html += '<fieldset><legend>動物の種類</legend><div class="species-big">' + ['dog', 'cat'].map((id) =>
+      '<button type="button" class="species-btn' + (sp0 === id ? ' active' : '') + '" data-action="pickSpecies" data-value="' + id + '">' + speciesOf(id).emoji + ' ' + speciesOf(id).label + '</button>').join('') + '</div>' +
+      '<label class="small muted">その他の動物<select name="species" data-change="species">' + optionsHtml(D.SPECIES, sp0) + '</select></label></fieldset>';
     html += '<div class="breed-wrap">' + breedSelectHtml(p.species || 'dog', p.breed || '') + '</div>';
     html += '<div class="two-col"><label>生年月日<input type="date" name="birthday" max="' + todayStr() + '" value="' + esc(p.birthday || '') + '"></label>';
     html += '<label>性別<select name="sex">' + optionsHtml(D.SEXES, p.sex || '', '選択') + '</select></label></div>';
@@ -648,7 +651,7 @@
 
   function dangerSignsHtml() {
     return '<div class="alert danger"><strong>次のような様子があれば、問診を待たずにすぐ動物病院へ連絡してください</strong><ul>' +
-      D.DANGER_SIGNS.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul></div>';
+      D.DANGER_SIGNS.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul><p class="small">※この一覧は一般的な目安で、獣医師による監修を準備中です。迷ったら動物病院に電話で相談してください。</p></div>';
   }
 
   function petSummaryLines(p) {
@@ -1208,8 +1211,31 @@
       l: logs.map((a) => [String(a[0]), str(a[1], 20), num(a[2]), str(a[3], 200)])
     };
   }
+  /* 獣医師が一目で分かるよう、日ごとに「嘔吐 2回・ごはん 3回」の形で要約する */
+  function dailySummaryHtml(logs) {
+    const days = {};
+    logs.forEach((l) => {
+      const d = l.datetime.slice(0, 10);
+      const day = days[d] || (days[d] = {});
+      const e = day[l.category] || (day[l.category] = { n: 0, w: '' });
+      e.n += 1;
+      if (l.value) e.w = l.value;
+    });
+    const order = ['ingest', 'vomit', 'regurgitate', 'stool', 'urine', 'food', 'water', 'medicine', 'weight', 'walk', 'other'];
+    return '<ul class="day-summary">' + Object.keys(days).sort().reverse().map((d) => {
+      const parts = order.filter((c) => days[d][c]).map((c) => {
+        const e = days[d][c];
+        const cat = categoryOf(c);
+        return '<span class="ds-item' + (['ingest', 'vomit'].indexOf(c) >= 0 ? ' ds-alert' : '') + '">' + cat.emoji + ' ' + esc(cat.label) + ' ' + (c === 'weight' && e.w ? esc(e.w) + 'kg' : e.n + '回') + '</span>';
+      });
+      return '<li><strong>' + esc(fmtDateHeading(d)) + '</strong><div>' + parts.join('') + '</div></li>';
+    }).join('') + '</ul>';
+  }
   function sharedLogsHtml(logs) {
     if (!logs.length) return '<p class="empty">この期間の記録はありません。</p>';
+    return dailySummaryHtml(logs) + '<details class="ds-details"><summary>すべての記録（時刻・メモ）を見る</summary>' + sharedTableHtml(logs) + '</details>';
+  }
+  function sharedTableHtml(logs) {
     let html = '<table class="shared-table"><thead><tr><th>日時</th><th>内容</th><th>メモ</th></tr></thead><tbody>';
     logsSorted(logs).forEach((l) => {
       const c = categoryOf(l.category);
@@ -1247,6 +1273,14 @@
       if (!commit(() => { db.logs.push(log); })) return;
       if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* 非対応 */ } }
       rerender();
+      if (cat === 'ingest') {
+        const h = db.settings.hospital;
+        openSheet('誤食の疑いを記録しました', '<div class="alert danger"><strong>有害なものを食べた可能性がある場合は、様子を見ずに今すぐ動物病院へ連絡してください。</strong><p>何を・どれくらい・いつ食べたかを伝えられるよう、パッケージや残りがあれば手元に置いてください。</p>' +
+          '<div class="btn-row">' + (h.phone ? '<a class="btn danger small" href="tel:' + esc(h.phone.replace(/[^\d+]/g, '')) + '">📞 ' + esc(h.name || 'かかりつけ') + 'に電話</a>' : '') +
+          '<button type="button" class="btn danger-ghost small" data-nav="emergency">緊急時の案内を開く</button></div></div>' +
+          '<button type="button" class="btn ghost block" data-action="editLog" data-id="' + esc(log.id) + '">何を食べたかメモする</button>');
+        return;
+      }
       toast(log.datetime.slice(11, 16) + ' ' + categoryOf(cat).label + 'を記録', [
         { label: 'メモ・時刻', fn: () => openLogForm(db.logs.find((l) => l.id === log.id)) },
         { label: '取消', fn: () => { if (commit(() => { db.logs = db.logs.filter((l) => l.id !== log.id); })) { toast('取り消しました'); rerender(); } } }
@@ -1305,6 +1339,13 @@
     },
     copySavedMemo: (el) => { const m = db.memos.find((x) => x.id === el.dataset.id); if (m) copyText(m.text); },
     copyLatestMemo: () => { const m = db.memos[db.memos.length - 1]; if (m) copyText(m.text); },
+    pickSpecies: (el) => {
+      const form = el.closest('form');
+      const sel = form.querySelector('select[name=species]');
+      sel.value = el.dataset.value;
+      form.querySelectorAll('.species-btn').forEach((b) => b.classList.toggle('active', b === el));
+      form.querySelector('.breed-wrap').innerHTML = breedSelectHtml(el.value || el.dataset.value, '');
+    },
     newReminder: () => openReminderForm({}),
     editReminder: (el) => { const r = db.reminders.find((x) => x.id === el.dataset.id); if (r) openReminderForm(Object.assign({}, r)); },
     deleteReminder: (el) => {
@@ -1384,6 +1425,7 @@
     }
     if (el.dataset.change === 'species') {
       el.form.querySelector('.breed-wrap').innerHTML = breedSelectHtml(el.value, '');
+      el.form.querySelectorAll('.species-btn').forEach((b) => b.classList.toggle('active', b.dataset.value === el.value));
       return;
     }
     if (el.dataset.change === 'sharePet') {

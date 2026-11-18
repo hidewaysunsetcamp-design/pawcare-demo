@@ -309,3 +309,16 @@ body[data-view=view] { padding-bottom: 24px; }
   .card { box-shadow: none; break-inside: avoid; }
   .memo { max-height: none; }
 }
+
+/* 犬・猫向けの見直し（v1.2） */
+.species-big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.species-btn { min-height: 64px; border-radius: 14px; border: 1px solid var(--line); background: #fff; font-size: 1.1rem; font-weight: 700; }
+.species-btn.active { border-color: var(--brand); background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand); }
+.day-summary { list-style: none; margin: 0; padding: 0; }
+.day-summary li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.day-summary li div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ds-item { display: inline-block; padding: 3px 10px; border-radius: 999px; background: #f1f6f4; font-size: .85rem; font-weight: 600; }
+.ds-item.ds-alert { background: var(--danger-soft); color: #7d1a1a; }
+.ds-details { margin-top: 12px; }
+.ds-details summary { cursor: pointer; color: var(--brand); font-weight: 700; padding: 6px 0; }
+@media print { .ds-details { display: block; } .ds-details[open] summary, .ds-details summary { display: none; } }

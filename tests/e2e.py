@@ -252,6 +252,32 @@ def run(device_name):
         page.wait_for_timeout(200)
         check(f'[{tag}] 入力値はHTMLとして解釈されない', page.locator('#app img[src=x]').count() == 0)
 
+        # ---------- v1.2 犬・猫向けの見直し ----------
+        page.evaluate('location.hash = "#/pets"')
+        page.wait_for_timeout(150)
+        page.click('text=＋ 追加')
+        check(f'[{tag}] 種類は犬・猫を大きなボタンで選べる', page.locator('.species-btn').count() == 2)
+        page.click('.species-btn[data-value=cat]')
+        opts = page.eval_on_selector_all('select[name=breedSelect] option', 'o => o.map(x => x.value)')
+        check(f'[{tag}] 猫ボタンで品種リストが猫に切り替わる', 'スコティッシュ・フォールド' in opts and page.input_value('select[name=species]') == 'cat')
+        page.fill('input[name=name]', 'ミケ')
+        page.click('form[data-form=pet] button[type=submit]')
+        page.wait_for_timeout(200)
+        page.evaluate('location.hash = "#/home"')
+        page.wait_for_timeout(150)
+        if page.locator('.chip:has-text("ミケ")').count():
+            page.click('.chip:has-text("ミケ")')
+        cats = page.eval_on_selector_all('.quick-btn', 'b => b.map(x => x.dataset.cat)')
+        check(f'[{tag}] 猫のワンタップ記録は猫向けの並び', cats[:3] == ['food', 'water', 'urine'] and 'walk' not in cats, str(cats))
+        page.click('.quick-btn[data-cat=ingest]')
+        page.wait_for_timeout(200)
+        sheet = page.inner_text('#sheet') if not page.locator('#sheet').is_hidden() else ''
+        check(f'[{tag}] 誤食の疑いを押すとすぐ病院へ連絡の案内', '今すぐ動物病院へ連絡' in sheet and '監修' not in sheet)
+        page.click('#sheet [data-close-sheet] >> nth=1')
+        page.evaluate('location.hash = "#/emergency"')
+        page.wait_for_timeout(150)
+        check(f'[{tag}] 危険な兆候の一覧に監修準備中の注記', '獣医師による監修を準備中' in page.inner_text('#app'))
+
         check(f'[{tag}] JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 
@@ -527,6 +553,8 @@ def run_v11(device_name):
         vctx, vp = open_viewer(browser, dev, url, errors, 'viewer')
         vt = vp.inner_text('#app')
         check(f'[{tag}] 共有ページ：受診用サマリーとペット情報', all(x in vt for x in ['受診用サマリー', 'ポチ', 'ペット情報', '柴犬', '9.2 kg']), vt[:200])
+        check(f'[{tag}] 共有ページ：日ごとの要約', vp.locator('.day-summary li').count() >= 1 and '嘔吐 1回' in vp.inner_text('.day-summary'), vp.inner_text('.day-summary')[:200] if vp.locator('.day-summary').count() else 'なし')
+        vp.click('.ds-details summary')
         rows = vp.locator('table.shared-table tbody tr')
         check(f'[{tag}] 共有ページ：記録の表', rows.count() >= 2 and '嘔吐' in vp.inner_text('table.shared-table') and '黄色い液体<b>少量</b>' in vp.inner_text('table.shared-table'))
         check(f'[{tag}] 共有ページ：下部ナビ・緊急ボタン非表示', vp.locator('.bottom-nav').is_hidden() and vp.locator('.header-emergency').is_hidden())

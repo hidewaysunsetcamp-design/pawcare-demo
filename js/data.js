@@ -49,6 +49,13 @@ window.PAWCARE_DATA = (function () {
     other: ['フェレット', 'モルモット', 'チンチラ', 'デグー', 'ハリネズミ', '爬虫類', '魚類'].concat(COMMON_TAIL)
   };
 
+  /* ホームのワンタップ記録に並べるカテゴリ（犬・猫に合わせた順番） */
+  var QUICK = {
+    dog: ['food', 'water', 'walk', 'stool', 'urine', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest'],
+    cat: ['food', 'water', 'urine', 'stool', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest', 'other'],
+    other: ['food', 'water', 'stool', 'urine', 'vomit', 'medicine', 'weight', 'ingest', 'walk', 'other']
+  };
+
   var SEXES = [
     { id: 'male', label: 'オス' },
     { id: 'female', label: 'メス' },
@@ -67,6 +74,7 @@ window.PAWCARE_DATA = (function () {
     { id: 'walk', label: '散歩', emoji: '🦮', color: '#3aa877' },
     { id: 'medicine', label: '服薬', emoji: '💊', color: '#e06c9f' },
     { id: 'weight', label: '体重', emoji: '⚖️', color: '#5a7bd6' },
+    { id: 'ingest', label: '誤食の疑い', emoji: '⚠️', color: '#d23f3f' },
     { id: 'other', label: 'その他', emoji: '📌', color: '#7d8a87' }
   ];
 
@@ -77,7 +85,7 @@ window.PAWCARE_DATA = (function () {
     'けいれん（ひきつけ）が起きている・起きた',
     '大量の出血、または出血が止まらない',
     '交通事故・高所からの落下など強い衝撃を受けた',
-    '有害なもの（薬・殺虫剤・タマネギ・チョコレート・ユリなど）を食べた可能性がある',
+    '有害なもの（人の薬・殺虫剤・タマネギ・チョコレート・キシリトール・ぶどう／レーズン、猫ではユリなど）や、おもちゃ・布などを飲み込んだ可能性がある',
     'お腹が急に膨れて、吐こうとしても吐けない',
     '何度もトイレに行く・力むのにおしっこが出ない、または長い時間まったく出ていない',
     '熱中症が疑われる（暑い場所で激しいパンティング、よだれ、ふらつき）'
@@ -132,7 +140,7 @@ window.PAWCARE_DATA = (function () {
   ];
 
   return {
-    REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
+    QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,
