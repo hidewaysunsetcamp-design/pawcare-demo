@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.1.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -83,6 +83,7 @@
       pets: [],
       logs: [],
       memos: [],
+      reminders: [],
       settings: { activePetId: null, hospital: { name: '', phone: '', note: '' }, lastBackupAt: null }
     };
   }
@@ -96,6 +97,7 @@
     const petIds = new Set(base.pets.map((p) => p.id));
     base.logs = Array.isArray(raw.logs) ? raw.logs.filter((l) => l && l.id && petIds.has(l.petId) && l.datetime) : [];
     base.memos = Array.isArray(raw.memos) ? raw.memos.filter((m) => m && m.id && m.text) : [];
+    base.reminders = Array.isArray(raw.reminders) ? raw.reminders.filter((r) => r && r.id && petIds.has(r.petId) && r.dueAt) : [];
     const s = raw.settings || {};
     base.settings.activePetId = petIds.has(s.activePetId) ? s.activePetId : (base.pets[0] ? base.pets[0].id : null);
     base.settings.hospital = Object.assign(base.settings.hospital, s.hospital || {});
@@ -249,7 +251,7 @@
   /* ============================================================
    * ルーティング
    * ============================================================ */
-  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings'];
+  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders'];
   let currentView = 'home';
   function go(view) {
     if (location.hash !== '#/' + view) location.hash = '#/' + view;
@@ -257,6 +259,7 @@
   }
   function viewFromHash() {
     const v = (location.hash || '').replace(/^#\/?/, '');
+    if (v.indexOf('view/') === 0) return 'view';
     return VIEWS.indexOf(v) >= 0 ? v : 'home';
   }
   function render() {
@@ -267,7 +270,9 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     document.body.dataset.view = currentView;
-    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings }[currentView];
+    const navView = currentView === 'reminders' ? 'home' : currentView;
+    document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === navView));
+    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, view: renderSharedView }[currentView];
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
   }
@@ -304,6 +309,8 @@
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.label) + '</button>';
     });
     html += '</div><button type="button" class="btn ghost block" data-action="newLog">日時・メモを入力して記録</button></section>';
+
+    html += homeRemindersHtml(pet);
 
     const today = db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 10) === todayStr());
     html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><button type="button" class="link" data-nav="logs">すべて見る</button></div>';
@@ -467,6 +474,7 @@
         '</dl><div class="btn-row">' +
         (p.id === db.settings.activePetId ? '<span class="badge">ホームに表示中</span>' : '<button type="button" class="btn ghost small" data-action="selectPet" data-id="' + esc(p.id) + '">ホームに表示</button>') +
         '<button type="button" class="btn ghost small" data-action="editPet" data-id="' + esc(p.id) + '">編集</button>' +
+        '<button type="button" class="btn ghost small" data-action="openShare" data-id="' + esc(p.id) + '">病院に共有</button>' +
         '<button type="button" class="btn danger-ghost small" data-action="deletePet" data-id="' + esc(p.id) + '">削除</button></div></section>';
     });
     return html;
@@ -487,7 +495,7 @@
     html += '<div class="two-col"><label>生年月日<input type="date" name="birthday" max="' + todayStr() + '" value="' + esc(p.birthday || '') + '"></label>';
     html += '<label>性別<select name="sex">' + optionsHtml(D.SEXES, p.sex || '', '選択') + '</select></label></div>';
     html += '<label>体重（kg）<input type="number" name="weight" inputmode="decimal" step="0.01" min="0" max="200" value="' + esc(p.weight || '') + '" placeholder="例：5.2"></label>';
-    html += '<label>補足メモ<textarea name="memo" rows="3" maxlength="1000" placeholder="持病・アレルギー・服用中の薬・かかりつけ病院など">' + esc(p.memo || '') + '</textarea></label>';
+    html += '<label>補足メモ<textarea name="memo" rows="3" maxlength="1000" placeholder="持病・アレルギー・服用中の薬など">' + esc(p.memo || '') + '</textarea></label>';
     html += '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">' + (p.id ? '保存する' : '登録する') + '</button></div></form>';
     return html;
   }
@@ -549,7 +557,7 @@
   function dangerBox(compact) {
     const h = db.settings.hospital;
     return '<div class="alert danger" role="alert"><strong>⚠️ 問診を待たずに、今すぐ動物病院へ連絡してください。</strong>' +
-      (compact ? '' : '<p>入力された内容には、急いで獣医師に相談すべき兆候が含まれています。</p>') +
+      (compact ? '' : '<p>入力内容に、「すぐ動物病院へ連絡すべき様子」の一覧と同じ項目があります。</p>') +
       '<div class="btn-row">' + (h.phone ? '<a class="btn danger small" href="tel:' + esc(h.phone.replace(/[^\d+]/g, '')) + '">📞 ' + esc(h.name || 'かかりつけ') + 'に電話</a>' : '') +
       '<button type="button" class="btn danger-ghost small" data-nav="emergency">緊急時の案内を開く</button></div></div>';
   }
@@ -616,9 +624,13 @@
           '<div class="form-actions"><button type="button" class="btn primary block" data-action="copyMemo">メモをコピー</button>' +
           (navigator.share ? '<button type="button" class="btn ghost block" data-action="shareMemo">LINE・メールなどで共有</button>' : '') +
           (iv.savedId ? '<p class="ok-text">✓ 保存済み（緊急時の案内からも確認できます）</p>' : '<button type="button" class="btn ghost block" data-action="saveMemo">この端末に保存</button>') +
+          '<button type="button" class="btn ghost block" data-action="shareInterview">病院への共有リンク・QRコードを作る</button>' +
           '<button type="button" class="btn ghost block" data-action="ivRestart">新しく問診をやり直す</button></div>' +
           '<p class="disclaimer">このメモは飼い主様の入力内容を整理したものであり、診断ではありません。受診の要否や緊急度は動物病院にご相談ください。</p>';
       }
+    }
+    if (iv.step > 1 && a.symptoms.some((x) => D.CAUTION_SYMPTOMS.indexOf(x) >= 0)) {
+      html = html.replace('<section class="card">', '<div class="alert warn">有害なものを食べた可能性がある場合や、出血が止まらない場合は、問診を待たずに動物病院へ連絡してください。</div><section class="card">');
     }
     if (iv.step > 0 && iv.step < last && interviewDanger(a)) html = html.replace('<section class="card">', dangerBox(true) + '<section class="card">');
     if (iv.step === last && interviewDanger(a)) html = html.replace('<section class="card">', dangerBox(false) + '<section class="card">');
@@ -739,6 +751,10 @@
         '<button type="button" class="btn primary block" data-action="copyLatestMemo">問診メモをコピー</button>';
     }
     html += '<button type="button" class="btn ghost block" data-action="startInterview">問診メモを作成する</button></section>';
+    if (pet) {
+      html += '<section class="card"><h2>🔗 病院に情報を見せる</h2><p class="muted small">プロフィール・問診メモ・最近の記録をまとめたリンクとQRコードを作ります。受付で見せたり、LINEやメールで送ったりできます。</p>' +
+        '<button type="button" class="btn primary block" data-action="openShare" data-id="' + esc(pet.id) + '">共有リンク・QRコードを作る</button></section>';
+    }
 
     if (pet) {
       html += petChips(pet.id, 'selectPet');
@@ -767,15 +783,21 @@
       (h.name || h.phone ? '<p><strong>' + esc(h.name || '名称未登録') + '</strong><br>' + esc(h.phone || '電話番号未登録') + '</p>' + (h.note ? '<p class="muted small pre">' + esc(h.note) + '</p>' : '') : '<p class="muted">未登録です。</p>') +
       '<button type="button" class="btn ghost block" data-action="editHospital">' + (h.name || h.phone ? '編集する' : '登録する') + '</button></section>';
 
+    html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="exportJson">バックアップを書き出す（JSON）</button>' +
       '<label class="btn ghost block file-btn">バックアップから復元<input type="file" accept="application/json,.json" data-action-change="importJson"></label>' +
       '<button type="button" class="btn ghost block" data-action="exportAllCsv"' + (db.logs.length ? '' : ' disabled') + '>すべての記録をCSVで書き出す</button></div></section>';
 
+    html += '<section class="card"><h2>📤 外部に送られるデータ</h2><p class="muted small">PAWCAREにはサーバーがなく、通常の記録は端末の外に送られません。次の操作をしたときだけ、外部のサービスに情報が渡ります。</p><ul class="small">' +
+      '<li><strong>病院への共有リンク</strong>：選んだ情報がリンク自体に入ります。LINE・メールで送ると、その送信履歴にも残ります。</li>' +
+      '<li><strong>Googleカレンダーに追加</strong>：ペット名・予定名・メモがGoogleに送られます。</li>' +
+      '<li><strong>近くの動物病院を探す</strong>：Googleマップで検索します（検索語は「動物病院」などの固定の言葉だけです）。</li>' +
+      '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li></ul></section>';
     html += '<section class="card"><h2>📱 ホーム画面に追加</h2><p class="muted small">iPhone（Safari）：共有ボタン →「ホーム画面に追加」<br>Android（Chrome）：右上メニュー →「ホーム画面に追加」または「アプリをインストール」</p></section>';
 
     html += '<section class="card"><h2>このアプリについて</h2><p class="small">PAWCARE デモ版 v' + APP_VERSION + '</p><p class="muted small">本アプリは健康記録と情報整理のためのツールです。病気の診断、治療方針の決定、緊急度の判定は行いません。体調に不安があるときは動物病院にご相談ください。</p>' +
-      '<p class="muted small">ペット ' + db.pets.length + '頭／記録 ' + db.logs.length + '件／問診メモ ' + db.memos.length + '件</p>' +
+      '<p class="muted small">ペット ' + db.pets.length + '頭／記録 ' + db.logs.length + '件／問診メモ ' + db.memos.length + '件／予定 ' + db.reminders.length + '件</p>' +
       '<button type="button" class="btn danger-ghost block" data-action="wipe">すべてのデータを削除</button></section>';
     return html;
   }
@@ -804,7 +826,7 @@
       try { parsed = JSON.parse(reader.result); } catch (e) { toast('ファイルの形式が正しくありません'); return; }
       const data = parsed && parsed.app === 'PAWCARE' ? parsed.data : parsed;
       const next = normalizeDb(data);
-      if (!next.pets.length && !next.logs.length) { toast('復元できるデータが見つかりませんでした'); return; }
+      if (!next.pets.length && !next.logs.length && !next.reminders.length) { toast('復元できるデータが見つかりませんでした'); return; }
       if (!confirm('ペット' + next.pets.length + '頭・記録' + next.logs.length + '件を復元します。\n現在の端末内のデータは置き換えられます。よろしいですか？')) return;
       const before = db;
       db = next;
@@ -843,6 +865,360 @@
   }
 
   /* ============================================================
+   * 予定・リマインダー
+   * ============================================================ */
+  function reminderTypeOf(id) { return D.REMINDER_TYPES.find((t) => t.id === id) || D.REMINDER_TYPES[D.REMINDER_TYPES.length - 1]; }
+  function repeatLabel(id) { const r = D.REPEATS.find((x) => x.id === id); return r ? r.label : ''; }
+  /* anchorDay：毎月・毎年のくり返しで元の日付（例：31日）を保つ。2月末→3/31 */
+  function addInterval(dateStr, repeat, anchorDay) {
+    const d = parseLocal(dateStr);
+    if (!d) return dateStr;
+    if (repeat === 'daily') d.setDate(d.getDate() + 1);
+    else if (repeat === 'weekly') d.setDate(d.getDate() + 7);
+    else if (repeat === 'monthly' || repeat === 'yearly') {
+      const day = anchorDay || d.getDate();
+      d.setDate(1);
+      if (repeat === 'monthly') d.setMonth(d.getMonth() + 1); else d.setFullYear(d.getFullYear() + 1);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, last));
+    }
+    return toLocalInput(d);
+  }
+  function reminderStatus(r) {
+    if (r.done) return 'done';
+    const now = nowLocal();
+    if (r.dueAt < now) return 'overdue';
+    if (r.dueAt.slice(0, 10) === todayStr()) return 'today';
+    return 'upcoming';
+  }
+  function reminderItemHtml(r, showPet) {
+    const t = reminderTypeOf(r.type);
+    const st = reminderStatus(r);
+    const pet = getPet(r.petId);
+    const badge = st === 'overdue' ? '<span class="tag">予定日を過ぎています</span>' : st === 'today' ? '<span class="tag warn">今日</span>' : st === 'done' ? '<span class="tag">完了</span>' : '';
+    return '<li class="rem-item rem-' + st + '"><button type="button" class="log-item" data-action="editReminder" data-id="' + esc(r.id) + '">' +
+      '<span class="log-dot" style="--c:#1f7a68" aria-hidden="true">' + t.emoji + '</span>' +
+      '<span class="log-main"><span class="log-cat">' + esc(r.title || t.label) + ' ' + badge + '</span>' +
+      '<span class="log-memo">' + esc(fmtDateTime(r.dueAt)) + (r.repeat !== 'none' ? '・' + esc(repeatLabel(r.repeat)) : '') + (showPet && pet ? '・' + esc(pet.name) : '') + '</span></span>' +
+      '<span class="chev" aria-hidden="true">›</span></button>' +
+      (r.done ? '' : '<div class="rem-actions"><button type="button" class="btn primary small" data-action="doneReminder" data-id="' + esc(r.id) + '">✓ 完了</button>' +
+        '<button type="button" class="btn ghost small" data-action="calendarReminder" data-id="' + esc(r.id) + '">📅 カレンダーに登録</button></div>') + '</li>';
+  }
+  function sortedReminders(list) {
+    return list.slice().sort((a, b) => (a.done - b.done) || (a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : 0));
+  }
+  function homeRemindersHtml(pet) {
+    const list = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done));
+    const due = list.filter((r) => reminderStatus(r) !== 'upcoming');
+    let html = '<section class="card"><div class="row-between"><h2>⏰ 予定' + (due.length ? ' <span class="tag warn">' + due.length + '</span>' : '') + '</h2><button type="button" class="link" data-nav="reminders">すべて見る</button></div>';
+    if (!list.length) {
+      html += '<p class="muted small">ワクチン・服薬・予防薬などの予定を登録すると、ここに表示されます。</p><button type="button" class="btn ghost block" data-action="newReminder">＋ 予定を追加</button>';
+    } else {
+      html += '<ul class="log-list">' + list.slice(0, 3).map((r) => reminderItemHtml(r, false)).join('') + '</ul>';
+    }
+    return html + '</section>';
+  }
+  function renderReminders() {
+    let html = '<div class="row-between"><h1 class="page-title">予定・リマインダー</h1><button type="button" class="btn primary small" data-action="newReminder">＋ 予定</button></div>';
+    if (!db.pets.length) return html + '<section class="card"><p>予定を登録するには、まずペットを登録してください。</p><button type="button" class="btn primary block" data-action="newPet">＋ ペットを登録する</button></section>';
+    html += '<p class="notice-small">🔔 通知はスマホのカレンダーから届きます。予定ごとに「カレンダーに登録」を押してください（アプリを閉じていても通知されます）。</p>';
+    const multi = db.pets.length > 1;
+    const active = sortedReminders(db.reminders.filter((r) => !r.done));
+    const done = sortedReminders(db.reminders.filter((r) => r.done)).reverse();
+    html += '<section class="card"><h2>これからの予定</h2>' + (active.length ? '<ul class="log-list">' + active.map((r) => reminderItemHtml(r, multi)).join('') + '</ul>' : '<p class="empty">予定はありません。</p>') + '</section>';
+    if (done.length) html += '<section class="card"><h2>完了した予定</h2><ul class="log-list">' + done.slice(0, 20).map((r) => reminderItemHtml(r, multi)).join('') + '</ul></section>';
+    return html;
+  }
+  function reminderFormHtml(r) {
+    const t = reminderTypeOf(r.type);
+    return '<form data-form="reminder" novalidate><input type="hidden" name="id" value="' + esc(r.id || '') + '">' +
+      '<label>ペット<select name="petId">' + optionsHtml(db.pets.map((p) => ({ id: p.id, label: p.name })), r.petId) + '</select></label>' +
+      '<label>種類<select name="type">' + optionsHtml(D.REMINDER_TYPES.map((x) => ({ id: x.id, label: x.emoji + ' ' + x.label })), r.type) + '</select></label>' +
+      '<label>タイトル（任意）<input name="title" maxlength="40" value="' + esc(r.title || '') + '" placeholder="例：' + esc(t.label) + '"></label>' +
+      '<label>日時<input type="datetime-local" name="dueAt" required value="' + esc(r.dueAt) + '"></label>' +
+      '<label>くり返し<select name="repeat">' + optionsHtml(D.REPEATS, r.repeat) + '</select></label>' +
+      '<label>メモ<textarea name="memo" rows="2" maxlength="500" placeholder="例：病院で指示された内容をそのまま記入">' + esc(r.memo || '') + '</textarea></label>' +
+      '<p class="muted small">「服薬」の予定を完了にすると、健康記録に服薬が自動で記録されます。</p>' +
+      '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">' + (r.id ? '保存する' : '追加する') + '</button>' +
+      (r.id ? '<button type="button" class="btn ghost block" data-action="calendarReminder" data-id="' + esc(r.id) + '">📅 カレンダーに登録</button><button type="button" class="btn danger-ghost block" data-action="deleteReminder" data-id="' + esc(r.id) + '">この予定を削除</button>' : '') +
+      '</div></form>';
+  }
+  function openReminderForm(r) {
+    const pet = activePet();
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0);
+    const data = Object.assign({ petId: pet ? pet.id : '', type: 'vaccine', title: '', dueAt: toLocalInput(d), repeat: 'none', memo: '' }, r || {});
+    openSheet(data.id ? '予定を編集' : '予定を追加', reminderFormHtml(data));
+  }
+  function saveReminderForm(form) {
+    const f = new FormData(form);
+    const id = f.get('id');
+    const err = form.querySelector('.form-error');
+    const data = { petId: f.get('petId'), type: f.get('type') || 'other', title: String(f.get('title') || '').trim(), dueAt: String(f.get('dueAt') || '').slice(0, 16), repeat: f.get('repeat') || 'none', memo: String(f.get('memo') || '').trim() };
+    data.anchorDay = +data.dueAt.slice(8, 10) || null;
+    if (!getPet(data.petId)) return showFormError(err, 'ペットを選んでください。');
+    if (!parseLocal(data.dueAt)) return showFormError(err, '日時を入力してください。');
+    let saved = null;
+    const ok = commit(() => {
+      if (id) {
+        saved = db.reminders.find((x) => x.id === id);
+        if (saved) Object.assign(saved, data, { done: false, updatedAt: new Date().toISOString() });
+      } else {
+        saved = Object.assign({ id: uid(), done: false, createdAt: new Date().toISOString() }, data);
+        db.reminders.push(saved);
+      }
+    });
+    if (!ok) return;
+    closeSheet();
+    rerender();
+    toast(id ? '予定を保存しました' : '予定を追加しました', saved ? [{ label: '📅 カレンダーに登録', fn: () => addToCalendar(saved) }] : []);
+  }
+  function doneReminder(id) {
+    const r = db.reminders.find((x) => x.id === id);
+    if (!r) return;
+    const t = reminderTypeOf(r.type);
+    const ok = commit(() => {
+      r.lastDoneAt = nowLocal();
+      if (r.repeat === 'none') r.done = true;
+      else {
+        const anchor = r.anchorDay || +r.dueAt.slice(8, 10);
+        r.anchorDay = anchor;
+        let next = addInterval(r.dueAt, r.repeat, anchor);
+        let guard = 0;
+        while (next <= nowLocal() && guard++ < 1000) next = addInterval(next, r.repeat, anchor);
+        r.dueAt = next;
+      }
+      if (r.type === 'medicine') db.logs.push({ id: uid(), petId: r.petId, category: 'medicine', datetime: nowLocal(), memo: r.title || r.memo || '', value: '', createdAt: new Date().toISOString() });
+    });
+    if (!ok) return;
+    closeSheet();
+    rerender();
+    toast((r.title || t.label) + 'を完了しました' + (r.type === 'medicine' ? '（服薬を記録）' : '') + (r.done ? '' : '／次回 ' + fmtShort(r.dueAt)));
+  }
+
+  /* カレンダー連携（.ics と Googleカレンダー） */
+  function icsDate(s) { return s.replace(/[-:]/g, '').slice(0, 13) + '00'; }
+  /* RFC 5545：1行75オクテットを超えたら折り返す（UTF-8の文字の途中では切らない） */
+  function icsFold(line) {
+    const enc = new TextEncoder();
+    if (enc.encode(line).length <= 75) return line;
+    const out = [];
+    let cur = '', size = 0, limit = 75;
+    for (const ch of line) {
+      const n = enc.encode(ch).length;
+      if (size + n > limit) { out.push(cur); cur = ''; size = 0; limit = 74; }
+      cur += ch; size += n;
+    }
+    out.push(cur);
+    return out.join('\r\n ');
+  }
+  function icsEscape(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+  const RRULE = { daily: 'FREQ=DAILY', weekly: 'FREQ=WEEKLY', monthly: 'FREQ=MONTHLY', yearly: 'FREQ=YEARLY' };
+  function reminderTexts(r) {
+    const pet = getPet(r.petId);
+    const t = reminderTypeOf(r.type);
+    return { title: (pet ? pet.name + '：' : '') + (r.title || t.label), details: (r.memo ? r.memo + '\n' : '') + 'PAWCAREで登録した予定です。' };
+  }
+  function buildIcs(r) {
+    const tx = reminderTexts(r);
+    const end = toLocalInput(new Date(parseLocal(r.dueAt).getTime() + 30 * 60000));
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAWCARE//Reminder//JA', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+      'UID:' + r.id + '@pawcare', 'DTSTAMP:' + stamp, 'DTSTART:' + icsDate(r.dueAt), 'DTEND:' + icsDate(end),
+      'SUMMARY:' + icsEscape(tx.title), 'DESCRIPTION:' + icsEscape(tx.details)];
+    if (RRULE[r.repeat]) lines.push('RRULE:' + RRULE[r.repeat]);
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape(tx.title), 'TRIGGER:PT0M', 'END:VALARM');
+    if (r.type === 'vaccine' || r.type === 'checkup') lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape('明日：' + tx.title), 'TRIGGER:-P1D', 'END:VALARM');
+    lines.push('END:VEVENT', 'END:VCALENDAR');
+    return lines.map(icsFold).join('\r\n') + '\r\n';
+  }
+  function googleCalendarUrl(r) {
+    const tx = reminderTexts(r);
+    const end = toLocalInput(new Date(parseLocal(r.dueAt).getTime() + 30 * 60000));
+    let tz = 'Asia/Tokyo';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* 既定値 */ }
+    let url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(tx.title) +
+      '&dates=' + icsDate(r.dueAt) + '/' + icsDate(end) + '&ctz=' + encodeURIComponent(tz) + '&details=' + encodeURIComponent(tx.details);
+    if (RRULE[r.repeat]) url += '&recur=' + encodeURIComponent('RRULE:' + RRULE[r.repeat]);
+    return url;
+  }
+  function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function addToCalendar(r) {
+    openSheet('カレンダーに登録', '<p>「' + esc(reminderTexts(r).title) + '」をスマホのカレンダーに登録します。時刻になるとカレンダーから通知が届きます。</p>' +
+      '<div class="form-actions"><button type="button" class="btn primary block" data-action="downloadIcs" data-id="' + esc(r.id) + '">' + (isIOS() ? 'iPhoneのカレンダーに追加' : 'カレンダーファイル（.ics）で追加') + '</button>' +
+      '<a class="btn ghost block" target="_blank" rel="noopener" href="' + esc(googleCalendarUrl(r)) + '">Googleカレンダーに追加</a></div>' +
+      '<p class="muted small">Googleカレンダーを選ぶと、ペット名・予定名・メモがGoogleに送信されます。</p>' +
+      '<p class="muted small">予定の日時を変更した場合は、カレンダー側の予定も手動で更新してください。</p>');
+  }
+  function downloadIcs(r) {
+    const ics = buildIcs(r);
+    if (isIOS()) {
+      /* iOS Safari は text/calendar を開くと「カレンダーに追加」画面になる */
+      location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+      return;
+    }
+    download('pawcare-' + r.id + '.ics', ics, 'text/calendar;charset=utf-8');
+  }
+
+  /* ============================================================
+   * 病院への共有（リンク・QRコード）
+   * データはURLの「#」以降に入れるため、PAWCAREやGitHubのサーバーには送信されない
+   * ============================================================ */
+  const QR_MAX = 1800;
+  function b64urlEncode(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64urlDecode(s) {
+    const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  async function encodePayload(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    if (window.CompressionStream) {
+      try {
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+        return 'z' + b64urlEncode(new Uint8Array(await new Response(stream).arrayBuffer()));
+      } catch (e) { /* 非圧縮にフォールバック */ }
+    }
+    return 'j' + b64urlEncode(bytes);
+  }
+  async function decodePayload(s) {
+    const kind = s.charAt(0);
+    let bytes = b64urlDecode(s.slice(1));
+    if (kind === 'z') {
+      if (!window.DecompressionStream) throw new Error('unsupported');
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else if (kind !== 'j') throw new Error('format');
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+  function qrSvg(text) {
+    if (!window.PawQR || text.length > QR_MAX) return '';
+    const qr = new window.PawQR.QRCode(-1, window.PawQR.L);
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount(), q = 4, size = n + q * 2;
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+    return '<svg class="qr" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="共有リンクのQRコード" shape-rendering="crispEdges"><rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+  }
+  function latestMemoFor(petId) {
+    const list = db.memos.filter((m) => m.petId === petId);
+    return list.length ? list[list.length - 1] : null;
+  }
+  let pendingShareMemo = null;
+  function openShareSheet(petId, memoText) {
+    if (!db.pets.length) return openPetForm({});
+    pendingShareMemo = memoText || null;
+    const pid = getPet(petId) ? petId : activePet().id;
+    const latest = latestMemoFor(pid);
+    const memoLabel = memoText ? '今作成した問診メモ' : latest ? '最新の問診メモ（' + fmtDateTime(latest.createdAt) + '）' : '';
+    openSheet('病院に情報を見せる', '<form data-form="share">' +
+      '<label>ペット<select name="petId" data-change="sharePet">' + optionsHtml(db.pets.map((p) => ({ id: p.id, label: p.name })), pid) + '</select></label>' +
+      '<label class="check share-memo"' + (memoLabel ? '' : ' hidden') + '><input type="checkbox" name="memo" checked> <span>' + esc(memoLabel) + 'を含める</span></label>' +
+      '<label>健康記録<select name="range">' + optionsHtml(D.SHARE_RANGES, '3') + '</select></label>' +
+      '<label class="check"><input type="checkbox" name="profileMemo"> <span>プロフィールの補足メモ（持病・アレルギーなど）を含める</span></label>' +
+      '<label>リンクの有効期間（目安）<select name="expiry">' + optionsHtml(D.SHARE_EXPIRY, '3') + '</select></label>' +
+      '<div class="alert warn"><strong>共有する前にご確認ください</strong><ul><li>リンクを知っている人は誰でも内容を見られます。病院以外には送らないでください。</li><li>データはリンクの中に入っていて、PAWCAREのサーバーには保存されません。</li><li>リンク自体に情報が入っているため、LINE・メール等で送るとその送信履歴や相手の端末の閲覧履歴にも情報が残ります。</li><li>有効期限は画面表示の目安です。期限後もリンク内のデータは消えず、技術的には読み取れます。送ったリンクは取り消せません。</li></ul></div>' +
+      '<div class="form-actions"><button type="submit" class="btn primary block">リンクとQRコードを作る</button></div></form>');
+  }
+  async function createShare(form) {
+    const f = new FormData(form);
+    const pet = getPet(f.get('petId'));
+    if (!pet) return;
+    const days = +f.get('range') || 0;
+    const hours = (+f.get('expiry') || 3) * 24;
+    let memo = '';
+    if (f.get('memo') && !form.querySelector('.share-memo').hidden) {
+      const m = pendingShareMemo && pet.id === (iv && iv.a.petId) ? pendingShareMemo : (latestMemoFor(pet.id) || {}).text;
+      memo = m || '';
+    }
+    const logs = days ? recentLogs(pet.id, days * 24).slice(0, 120).map((l) => [l.datetime, l.category, l.value || '', (l.memo || '').slice(0, 200)]) : [];
+    const payload = {
+      v: 1, c: nowLocal(), x: Date.now() + hours * 3600000,
+      p: { n: pet.name, s: pet.species, b: pet.breed, bd: pet.birthday, sx: pet.sex, w: pet.weight, m: f.get('profileMemo') ? pet.memo : '' },
+      memo: memo, d: days, l: logs
+    };
+    const data = await encodePayload(payload);
+    const url = location.origin + location.pathname + '#/view/' + data;
+    const qr = qrSvg(url);
+    $sheetTitle.textContent = '共有リンクができました';
+    $sheetBody.innerHTML = '<div class="share-result">' +
+      (qr ? '<div class="qr-wrap">' + qr + '<p class="muted small">病院の受付でこのQRコードを読み取ってもらえます。</p></div>' : '<p class="alert warn">記録が多いためQRコードは作れません。下のボタンからリンクを送ってください（記録の期間を短くするとQRコードを作れます）。</p>') +
+      '<label>共有リンク<input class="share-url" readonly value="' + esc(url) + '"></label>' +
+      '<div class="form-actions"><button type="button" class="btn primary block" data-action="copyShareUrl">リンクをコピー</button>' +
+      (navigator.share ? '<button type="button" class="btn ghost block" data-action="shareShareUrl">LINE・メールで送る</button>' : '') +
+      '<a class="btn ghost block" href="' + esc(url) + '" target="_blank" rel="noopener">病院側の表示を確認する</a></div>' +
+      '<p class="muted small">有効期限の目安：' + esc(fmtDateTime(toLocalInput(new Date(payload.x)))) + 'まで</p></div>';
+  }
+
+  let sharedCache = { key: null, data: null, error: null };
+  function renderSharedView() {
+    const key = location.hash.replace(/^#\/view\//, '');
+    if (sharedCache.key !== key) {
+      sharedCache = { key: key, data: null, error: null };
+      decodePayload(key).then((d) => { sharedCache.data = sanitizeShared(d); if (!sharedCache.data) throw new Error('format'); }).catch((e) => { sharedCache.error = e; }).then(() => { if (currentView === 'view') render(); });
+      return '<p class="loading">読み込み中…</p>';
+    }
+    if (sharedCache.error) {
+      return '<section class="card"><h1>共有された情報を表示できません</h1><p>' + (sharedCache.error.message === 'unsupported' ? 'このブラウザは古いため表示できません。最新のChromeまたはSafariで開いてください。' : 'リンクが途中で切れている可能性があります。送ってくれた方に、もう一度リンクを送ってもらってください。') + '</p></section>';
+    }
+    const s = sharedCache.data;
+    if (!s) return '<p class="loading">読み込み中…</p>';
+    if (Date.now() > s.x) {
+      return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">飼い主様に、PAWCAREから新しい共有リンクを作成してもらってください。</p></section>';
+    }
+    const p = s.p || {};
+    const pet = { name: p.n, species: p.s, breed: p.b, birthday: p.bd, sex: p.sx, weight: p.w, memo: p.m };
+    let html = '<section class="card shared-head"><p class="tag">受診用サマリー</p><h1>' + speciesOf(pet.species).emoji + ' ' + esc(pet.name) + '</h1>' +
+      '<p class="muted small">作成：' + esc(fmtDateTime(s.c)) + '／表示期限：' + esc(fmtDateTime(toLocalInput(new Date(s.x)))) + '</p>' +
+      '<p class="disclaimer">飼い主が PAWCARE に入力した情報です。診断や医学的な判断を含むものではなく、内容の正確性は PAWCARE では確認していません。</p></section>';
+    html += '<section class="card"><h2>ペット情報</h2><dl class="pet-dl">' +
+      '<dt>種類</dt><dd>' + esc(speciesOf(pet.species).label + (pet.breed ? '・' + pet.breed : '')) + '</dd>' +
+      '<dt>年齢</dt><dd>' + (pet.birthday ? esc(ageText(pet.birthday)) + '（' + esc(pet.birthday.replace(/-/g, '/')) + '生）' : '未登録') + '</dd>' +
+      '<dt>性別</dt><dd>' + esc(sexLabel(pet.sex) || '未登録') + '</dd>' +
+      '<dt>体重</dt><dd>' + (pet.weight ? esc(pet.weight) + ' kg' : '未登録') + '</dd>' +
+      (pet.memo ? '<dt>メモ</dt><dd class="pre">' + esc(pet.memo) + '</dd>' : '') + '</dl></section>';
+    if (s.memo) html += '<section class="card"><h2>問診メモ</h2><pre class="memo">' + esc(s.memo) + '</pre></section>';
+    if (s.d) {
+      const logs = (s.l || []).map((a, i) => ({ id: 's' + i, petId: '', datetime: a[0], category: a[1], value: a[2], memo: a[3] }));
+      html += '<section class="card"><h2>健康記録（直近' + (s.d === 1 ? '24時間' : s.d + '日間') + '）</h2>' + sharedLogsHtml(logs) + '</section>';
+    }
+    html += '<div class="form-actions no-print"><button type="button" class="btn ghost block" data-action="printView">印刷する</button></div>';
+    return html;
+  }
+  /* リンクの中身は第三者が改ざんできるため、型と値を検証してから使う */
+  function sanitizeShared(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const str = (v, max) => (typeof v === 'string' ? v.slice(0, max || 2000) : '');
+    const num = (v) => (/^\d{1,3}(\.\d{1,2})?$/.test(String(v)) ? String(v) : '');
+    const dt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    const p = raw.p && typeof raw.p === 'object' ? raw.p : {};
+    const bd = str(p.bd, 10);
+    const logs = Array.isArray(raw.l) ? raw.l.filter((a) => Array.isArray(a) && dt.test(String(a[0]))).slice(0, 500) : [];
+    return {
+      c: dt.test(String(raw.c)) ? raw.c : '',
+      x: Number.isFinite(raw.x) ? raw.x : 0,
+      p: { n: str(p.n, 60) || '（名前なし）', s: str(p.s, 20), b: str(p.b, 60), bd: /^\d{4}-\d{2}-\d{2}$/.test(bd) ? bd : '', sx: str(p.sx, 20), w: num(p.w), m: str(p.m, 1000) },
+      memo: str(raw.memo, 6000),
+      d: [1, 3, 7, 30].indexOf(+raw.d) >= 0 ? +raw.d : 0,
+      l: logs.map((a) => [String(a[0]), str(a[1], 20), num(a[2]), str(a[3], 200)])
+    };
+  }
+  function sharedLogsHtml(logs) {
+    if (!logs.length) return '<p class="empty">この期間の記録はありません。</p>';
+    let html = '<table class="shared-table"><thead><tr><th>日時</th><th>内容</th><th>メモ</th></tr></thead><tbody>';
+    logsSorted(logs).forEach((l) => {
+      const c = categoryOf(l.category);
+      html += '<tr><td>' + esc(fmtShort(l.datetime)) + '</td><td>' + c.emoji + ' ' + esc(c.label) + (l.value ? ' ' + esc(l.value) + 'kg' : '') + '</td><td>' + esc(l.memo) + '</td></tr>';
+    });
+    return html + '</tbody></table>';
+  }
+
+  /* ============================================================
    * イベント処理
    * ============================================================ */
   const actions = {
@@ -853,10 +1229,11 @@
       const p = getPet(el.dataset.id);
       if (!p) return;
       const n = db.logs.filter((l) => l.petId === p.id).length;
-      if (!confirm(p.name + 'を削除しますか？\n健康記録' + n + '件も一緒に削除されます。この操作は取り消せません。')) return;
+      if (!confirm(p.name + 'を削除しますか？\n健康記録' + n + '件と予定も一緒に削除されます。この操作は取り消せません。')) return;
       if (commit(() => {
         db.pets = db.pets.filter((x) => x.id !== p.id);
         db.logs = db.logs.filter((l) => l.petId !== p.id);
+        db.reminders = db.reminders.filter((r) => r.petId !== p.id);
         if (db.settings.activePetId === p.id) db.settings.activePetId = db.pets[0] ? db.pets[0].id : null;
       })) { toast('削除しました'); rerender(); }
     },
@@ -928,6 +1305,20 @@
     },
     copySavedMemo: (el) => { const m = db.memos.find((x) => x.id === el.dataset.id); if (m) copyText(m.text); },
     copyLatestMemo: () => { const m = db.memos[db.memos.length - 1]; if (m) copyText(m.text); },
+    newReminder: () => openReminderForm({}),
+    editReminder: (el) => { const r = db.reminders.find((x) => x.id === el.dataset.id); if (r) openReminderForm(Object.assign({}, r)); },
+    deleteReminder: (el) => {
+      if (!confirm('この予定を削除しますか？\n（カレンダーに登録済みの予定は、カレンダー側で削除してください）')) return;
+      if (commit(() => { db.reminders = db.reminders.filter((r) => r.id !== el.dataset.id); })) { closeSheet(); toast('予定を削除しました'); rerender(); }
+    },
+    doneReminder: (el) => doneReminder(el.dataset.id),
+    calendarReminder: (el) => { const r = db.reminders.find((x) => x.id === el.dataset.id); if (r) addToCalendar(r); },
+    downloadIcs: (el) => { const r = db.reminders.find((x) => x.id === el.dataset.id); if (r) downloadIcs(r); },
+    openShare: (el) => openShareSheet(el.dataset.id),
+    shareInterview: () => openShareSheet(iv.a.petId, buildMemo(iv.a)),
+    copyShareUrl: () => { const i = $sheetBody.querySelector('.share-url'); if (i) copyText(i.value); },
+    shareShareUrl: () => { const i = $sheetBody.querySelector('.share-url'); if (i) shareText('PAWCARE 受診用サマリー', i.value); },
+    printView: () => window.print(),
     deleteMemo: (el) => {
       if (!confirm('この問診メモを削除しますか？')) return;
       if (commit(() => { db.memos = db.memos.filter((m) => m.id !== el.dataset.id); })) { closeSheet(); rerender(); }
@@ -965,6 +1356,8 @@
     e.preventDefault();
     if (type === 'log') saveLogForm(form);
     else if (type === 'pet') savePetForm(form);
+    else if (type === 'reminder') saveReminderForm(form);
+    else if (type === 'share') createShare(form);
     else if (type === 'hospital') {
       const f = new FormData(form);
       const data = { name: String(f.get('name') || '').trim(), phone: String(f.get('phone') || '').trim(), note: String(f.get('note') || '').trim() };
@@ -993,10 +1386,23 @@
       el.form.querySelector('.breed-wrap').innerHTML = breedSelectHtml(el.value, '');
       return;
     }
+    if (el.dataset.change === 'sharePet') {
+      const latest = latestMemoFor(el.value);
+      const box = el.form.querySelector('.share-memo');
+      const own = pendingShareMemo && iv && iv.a.petId === el.value;
+      box.hidden = !(own || latest);
+      box.querySelector('span').textContent = (own ? '今作成した問診メモ' : latest ? '最新の問診メモ（' + fmtDateTime(latest.createdAt) + '）' : '') + 'を含める';
+      return;
+    }
     if (el.dataset.change === 'breed') {
       const other = el.form.querySelector('.breed-other');
       other.hidden = el.value !== 'その他';
       if (!other.hidden) other.querySelector('input').focus();
+      return;
+    }
+    if (el.name === 'type' && el.form && el.form.dataset.form === 'reminder') {
+      const t = el.form.querySelector('input[name=title]');
+      t.placeholder = '例：' + reminderTypeOf(el.value).label;
       return;
     }
     if (el.name === 'category' && el.form && el.form.dataset.form === 'log') {

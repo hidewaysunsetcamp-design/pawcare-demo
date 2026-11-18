@@ -285,3 +285,27 @@ legend { font-weight: 600; font-size: .9rem; margin-bottom: 6px; padding: 0; }
   .app-main { padding-top: 20px; }
   .sheet-panel { bottom: auto; top: 50%; transform: translateY(-50%); border-radius: 20px; animation: none; }
 }
+
+/* 予定・共有（v1.1） */
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: var(--brand-soft); color: var(--brand-dark); vertical-align: 2px; }
+.tag.danger { background: var(--danger); color: #fff; }
+.tag.warn { background: #f5b335; color: #3a2a00; }
+.rem-actions { display: flex; gap: 8px; padding: 0 12px 12px 58px; flex-wrap: wrap; }
+.rem-done .log-cat { color: var(--muted); text-decoration: line-through; }
+.alert.warn { background: #fff6df; border: 1px solid #f0d58a; color: #5a4300; font-size: .9rem; }
+.qr-wrap { text-align: center; margin-bottom: 12px; }
+.qr { width: min(280px, 80vw); height: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.share-url { font-size: 13px !important; }
+.shared-head h1 { margin: 6px 0 2px; }
+.shared-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.shared-table th, .shared-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.shared-table th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+.shared-table td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+body[data-view=view] .bottom-nav, body[data-view=view] .header-emergency { display: none; }
+body[data-view=view] { padding-bottom: 24px; }
+@media print {
+  .app-header, .bottom-nav, .toast, .storage-banner, .no-print { display: none !important; }
+  body { background: #fff; padding: 0; }
+  .card { box-shadow: none; break-inside: avoid; }
+  .memo { max-height: none; }
+}

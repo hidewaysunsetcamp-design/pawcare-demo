@@ -72,14 +72,14 @@ window.PAWCARE_DATA = (function () {
 
   /* 問診を待たずに動物病院へ連絡すべき兆候（診断ではなく受診の目安として表示） */
   var DANGER_SIGNS = [
-    '呼吸が苦しそう（口を開けて呼吸する、舌や歯ぐきが紫色・白っぽい）',
+    '呼吸が苦しそう（安静にしていても呼吸が荒い・苦しそう、猫・うさぎ・小動物・鳥が口を開けて呼吸する、舌や歯ぐきが紫色・白っぽい）',
     '意識がない、呼びかけへの反応が鈍い、ぐったりして立てない',
     'けいれん（ひきつけ）が起きている・起きた',
     '大量の出血、または出血が止まらない',
     '交通事故・高所からの落下など強い衝撃を受けた',
     '有害なもの（薬・殺虫剤・タマネギ・チョコレート・ユリなど）を食べた可能性がある',
     'お腹が急に膨れて、吐こうとしても吐けない',
-    'おしっこが半日以上まったく出ていない、または何度も力むのに出ない',
+    '何度もトイレに行く・力むのにおしっこが出ない、または長い時間まったく出ていない',
     '熱中症が疑われる（暑い場所で激しいパンティング、よだれ、ふらつき）'
   ];
 
@@ -94,17 +94,48 @@ window.PAWCARE_DATA = (function () {
   var FREQUENCY = ['1回だけ', '2〜3回', '4回以上', 'ずっと続いている', '時々（波がある）', 'わからない'];
   var APPETITE = ['いつも通り食べる', '少し減った', 'ほとんど食べない', 'まったく食べない', 'わからない'];
   var WATER = ['いつも通り', '少ない', '飲まない', 'いつもより多い', 'わからない'];
-  var ENERGY = ['いつも通り元気', '少し元気がない', 'ぐったりしている', '呼びかけへの反応が鈍い', '意識がない'];
-  var BREATHING = ['いつも通り', '少し速い・荒い', '口を開けて苦しそうに呼吸する', '咳き込む', 'わからない'];
+  var ENERGY = ['いつも通り元気', '少し元気がない', 'ぐったりして立てない', '呼びかけへの反応が鈍い', '意識がない'];
+  var BREATHING = ['いつも通り', '少し速い・荒い', '安静時も苦しそうに呼吸する（猫・小動物・鳥は口を開けて呼吸）', '咳き込む', 'わからない'];
 
   /* 上記の選択肢のうち、危険な兆候に該当するもの */
-  var DANGER_ANSWERS = ['呼びかけへの反応が鈍い', '意識がない', '口を開けて苦しそうに呼吸する'];
+  var DANGER_ANSWERS = ['ぐったりして立てない', '呼びかけへの反応が鈍い', '意識がない', '安静時も苦しそうに呼吸する（猫・小動物・鳥は口を開けて呼吸）'];
+  /* 選ばれたら緊急度は判定せず、注意文だけを表示する症状 */
+  var CAUTION_SYMPTOMS = ['誤食', '出血・けが'];
   var DANGER_SYMPTOMS = ['けいれん'];
 
+  var REMINDER_TYPES = [
+    { id: 'vaccine', label: 'ワクチン', emoji: '💉' },
+    { id: 'medicine', label: '服薬', emoji: '💊' },
+    { id: 'prevent', label: 'ノミ・ダニ・フィラリア予防', emoji: '🛡️' },
+    { id: 'checkup', label: '健康診断・通院', emoji: '🏥' },
+    { id: 'care', label: 'トリミング・爪切り', emoji: '✂️' },
+    { id: 'other', label: 'その他', emoji: '📌' }
+  ];
+  var REPEATS = [
+    { id: 'none', label: 'くり返さない' },
+    { id: 'daily', label: '毎日' },
+    { id: 'weekly', label: '毎週' },
+    { id: 'monthly', label: '毎月' },
+    { id: 'yearly', label: '毎年' }
+  ];
+  var SHARE_RANGES = [
+    { id: '0', label: '含めない' },
+    { id: '1', label: '直近24時間' },
+    { id: '3', label: '直近3日間' },
+    { id: '7', label: '直近7日間' },
+    { id: '30', label: '直近30日間' }
+  ];
+  var SHARE_EXPIRY = [
+    { id: '1', label: '24時間' },
+    { id: '3', label: '3日間' },
+    { id: '7', label: '7日間' }
+  ];
+
   return {
+    REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,
-    DANGER_ANSWERS: DANGER_ANSWERS, DANGER_SYMPTOMS: DANGER_SYMPTOMS
+    DANGER_ANSWERS: DANGER_ANSWERS, DANGER_SYMPTOMS: DANGER_SYMPTOMS, CAUTION_SYMPTOMS: CAUTION_SYMPTOMS
   };
 })();
