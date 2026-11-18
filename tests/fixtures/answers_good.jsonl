@@ -1,0 +1,5 @@
+{"id":"case-001","answer":{"message":"問診を待たずに、今すぐ動物病院へ電話してください。おしっこが出ない様子は急いで相談すべき様子の一覧に当たります。","followup_questions":[],"info":[]}}
+{"id":"case-002","answer":{"message":"入力内容を整理しました。追加で次のことを教えてください。","followup_questions":["吐いた回数は何回ですか？","元気はいつも通りですか？","食欲はありますか？","吐いたものの内容（フード・液体・毛玉など）は？"],"info":[{"text":"嘔吐の記録は回数と時刻を残すと受診時に役立ちます。","source_ids":["lit_x#0"]}]}}
+{"id":"case-003","answer":{"message":"今すぐ動物病院へ連絡してください。","followup_questions":[],"info":[]}}
+{"id":"case-004","answer":{"message":"ただちに動物病院へ電話で相談してください。","followup_questions":[],"info":[]}}
+{"id":"case-005","answer":{"message":"整理しました。","followup_questions":["どの足ですか？","いつからですか？","腫れはありますか？","触ると痛がるかを教えてください"],"info":[]}}

@@ -1,0 +1,5 @@
+{"id": "case-001", "species": "cat", "sex": "male_neutered", "input": "オス猫が何度もトイレに行くのにおしっこが出ていない。朝から。鳴いて嫌がる", "danger": true, "must_ask": [], "reviewed_by_vet": false, "note": "サンプル。獣医師のレビュー前"}
+{"id": "case-002", "species": "dog", "input": "柴犬が今朝1回吐いた。その後は元気で水も飲んでいる", "danger": false, "must_ask": ["回数", "元気", "食欲", "吐いたものの内容"], "reviewed_by_vet": false, "note": "サンプル"}
+{"id": "case-003", "species": "rabbit", "input": "うさぎが昨日の夜から牧草もペレットも食べず、うんちが出ていない", "danger": true, "must_ask": [], "reviewed_by_vet": false, "note": "サンプル。うさぎの食欲廃絶は要連絡の扱いで獣医師に確認する"}
+{"id": "case-004", "species": "bird", "input": "セキセイインコが膨らんで止まり木ではなく床にじっとしている", "danger": true, "must_ask": [], "reviewed_by_vet": false, "note": "サンプル"}
+{"id": "case-005", "species": "dog", "input": "散歩のあと足を少し気にしているが、歩けているし食欲もある", "danger": false, "must_ask": ["どの足", "いつから", "腫れ", "触ると痛がるか"], "reviewed_by_vet": false, "note": "サンプル"}

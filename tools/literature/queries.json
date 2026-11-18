@@ -1,0 +1,16 @@
+[
+  {"topic": "emergency_triage", "species": ["dog", "cat"], "query": "(dog OR dogs OR canine OR cat OR cats OR feline) AND (triage OR \"emergency presentation\" OR \"red flag\" OR \"emergency room\")"},
+  {"topic": "vomiting_diarrhea", "species": ["dog", "cat"], "query": "(canine OR feline) AND (vomiting OR diarrhoea OR diarrhea OR \"acute gastroenteritis\" OR \"acute haemorrhagic diarrhoea\")"},
+  {"topic": "urinary_obstruction", "species": ["cat"], "query": "(cat OR feline) AND (\"urethral obstruction\" OR \"lower urinary tract disease\" OR FLUTD)"},
+  {"topic": "gdv", "species": ["dog"], "query": "(dog OR canine) AND (\"gastric dilatation\" OR GDV)"},
+  {"topic": "toxicology", "species": ["dog", "cat"], "query": "(dog OR canine OR cat OR feline) AND (toxicosis OR poisoning OR xylitol OR \"grape toxicity\" OR \"lily toxicity\" OR permethrin)"},
+  {"topic": "respiratory_distress", "species": ["dog", "cat"], "query": "(canine OR feline) AND (\"respiratory distress\" OR dyspnoea OR dyspnea OR \"brachycephalic obstructive airway\")"},
+  {"topic": "seizures", "species": ["dog", "cat"], "query": "(canine OR feline) AND (seizure OR \"status epilepticus\" OR epilepsy)"},
+  {"topic": "heatstroke", "species": ["dog", "cat"], "query": "(dog OR canine OR cat) AND (heatstroke OR \"heat-related illness\" OR hyperthermia)"},
+  {"topic": "rabbit_gi_stasis", "species": ["rabbit"], "query": "(rabbit OR rabbits OR Oryctolagus) AND (\"gastrointestinal stasis\" OR anorexia OR \"intestinal obstruction\" OR ileus)"},
+  {"topic": "rabbit_general", "species": ["rabbit"], "query": "(pet rabbit OR companion rabbit) AND (disease OR welfare OR clinical)"},
+  {"topic": "avian_psittacine", "species": ["bird"], "query": "(psittacine OR parrot OR budgerigar OR cockatiel OR \"companion bird\" OR \"pet bird\") AND (disease OR clinical OR diagnosis)"},
+  {"topic": "small_mammals", "species": ["hamster", "other"], "query": "(hamster OR \"guinea pig\" OR ferret OR chinchilla) AND (disease OR clinical)"},
+  {"topic": "preventive_care", "species": ["dog", "cat"], "query": "(dog OR cat OR canine OR feline) AND (vaccination guideline OR heartworm prevention OR \"preventive care\")"},
+  {"topic": "owner_reported_history", "species": ["dog", "cat"], "query": "(veterinary OR companion animal) AND (\"owner-reported\" OR \"client communication\" OR telemedicine OR telehealth OR \"symptom checker\")"}
+]

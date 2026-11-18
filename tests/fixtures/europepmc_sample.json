@@ -1,0 +1,5 @@
+{"hitCount": 3, "nextCursorMark": "AoE", "resultList": {"result": [
+ {"id": "100001", "source": "MED", "pmid": "100001", "pmcid": "PMC900001", "doi": "10.0000/example.1", "title": "Example open access study of <i>canine</i> triage", "authorString": "Sato A, Suzuki B.", "journalInfo": {"journal": {"title": "Example Vet J"}}, "pubYear": "2024", "abstractText": "<h4>Background</h4>Example abstract text.", "isOpenAccess": "Y", "license": "cc by", "pubTypeList": {"pubType": ["research-article"]}},
+ {"id": "100002", "source": "MED", "pmid": "100002", "doi": "10.0000/example.2", "title": "Example non-commercial licence paper", "authorString": "Tanaka C.", "journalInfo": {"journal": {"title": "Example Vet J"}}, "pubYear": "2023", "abstractText": "Should not be stored.", "isOpenAccess": "Y", "license": "cc by-nc"},
+ {"id": "100003", "source": "MED", "pmid": "100003", "title": "Example closed access paper", "authorString": "Ito D.", "journalTitle": "Closed Journal", "pubYear": "2022", "abstractText": "Should not be stored either.", "isOpenAccess": "N"}
+]}}
