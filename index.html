@@ -1,0 +1,199 @@
+DOCTYPE html>
+html lang="ja">
+head>
+  meta charset="UTF-8">
+  meta name="viewport" content="width=device-width, initial-scale=1.0">
+  title>PAWCARE - ペット健康管理デモtitle>
+  style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 0 0 20px 20px; }
+    .header h1 { font-size: 1.5em; margin-bottom: 5px; }
+    .header p { font-size: 0.85em; opacity: 0.9; }
+    .container { max-width: 480px; margin: 0 auto; padding: 15px; }
+    .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 1.1em; margin-bottom: 10px; color: #667eea; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 0.85em; margin-bottom: 4px; color: #555; font-weight: 500; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95em; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.95em; cursor: pointer; width: 100%; }
+    button:hover { opacity: 0.9; }
+    .btn-sm { padding: 6px 12px; font-size: 0.85em; width: auto; }
+    .pet-name-display { background: #f8f9ff; padding: 10px; border-radius: 8px; text-align: center; font-size: 1.1em; color: #667eea; font-weight: bold; margin-bottom: 10px; }
+    .log-entry { background: #f8f9ff; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #667eea; }
+    .log-entry .datetime { font-size: 0.8em; color: #888; }
+    .log-entry .event { font-weight: bold; color: #667eea; }
+    .log-entry .notes { font-size: 0.9em; color: #555; margin-top: 3px; }
+    .symptom-btn { margin: 5px 0; }
+    .emergency { background: #ffe0e0; border: 2px solid #ff4444; border-radius: 10px; padding: 12px; margin-top: 10px; display: none; }
+    .emergency h3 { color: #ff4444; margin-bottom: 5px; }
+    .symptom-note { background: #e0f0ff; border: 2px solid #4488ff; border-radius: 10px; padding: 12px; margin-top: 10px; display: none; }
+    .symptom-note h3 { color: #4488ff; margin-bottom: 5px; }
+    .disclaimer { background: #fff8e0; border: 1px solid #ffcc00; border-radius: 8px; padding: 10px; font-size: 0.8em; color: #666; margin-top: 15px; }
+    .entries-count { font-size: 0.8em; color: #888; text-align: right; }
+    @media (max-width: 320px) { .header h1 { font-size: 1.2em; } .card { padding: 12px; } }
+  style>
+head>
+body>
+  div class="header">
+    h1>🐾 PAWCAREh1>
+    p>ペット健康管理デモp>
+  div>
+  div class="container">
+    div class="card">
+      h2>📝 ペット名登録h2>
+      div class="form-group">
+        label>ペット名label>
+        input type="text" id="petName" placeholder="ペットの名前を入力">
+      div>
+      button id="savePetNameBtn">名前を保存button>
+      div class="pet-name-display" id="petNameDisplay">名前未登録div>
+    div>
+    div class="card">
+      h2>📋 ヘルスログh2>
+      div class="form-group">
+        label>種類label>
+        select id="eventType">
+          option value="ごはん">ごはんoption>
+          option value="吐き戻し">吐き戻しoption>
+          option value="嘔吐">嘔吐option>
+          option value="排泄">排泄option>
+          option value="散歩">散歩option>
+          option value="服薬">服薬option>
+        select>
+      div>
+      div class="form-group">
+        label>備考label>
+        textarea id="eventNotes" placeholder="備考を入力（任意）">textarea>
+      div>
+      button id="addLogBtn">ログを追加button>
+      div class="entries-count" id="entriesCount">0 件の記録div>
+      div class="logs-container" id="logsContainer">
+        p>まだ記録がありません。p>
+      div>
+    div>
+    div class="card">
+      h2>⚠️ 症状相談h2>
+      p style="font-size:0.85em;color:#888;margin-bottom:10px;">以下の症状を選択してください。p>
+      button class="symptom-btn" data-symptom="嘔吐">嘔吐 button>
+      button class="symptom-btn" data-symptom="食欲不振">食欲不振 button>
+      button class="symptom-btn" data-symptom="呼吸困難">呼吸困難 button>
+      button class="symptom-btn" data-symptom="意識障害">意識障害 button>
+      div class="emergency" id="emergencyAlert">
+        h3>🚨 緊急救診 h3>
+        p>以下の症状は緊急性が高いです。p>
+        p style="font-weight:bold;margin:8px 0;">「呼吸困難」または「意識障害」が観察されます。p>
+        p>すぐに動物病院へご連絡ください。緊急対応がない場合は、最寄りの救急動物病院へお急ぎください。p>
+      div>
+      div class="symptom-note" id="symptomNote">
+        h3>ℹ️ 症状についての注意事項h3>
+        p id="symptomMessage">症状についての情報です。p>
+      div>
+    div>
+    div class="disclaimer">
+      strong>免責事項strong>p>
+      p>本アプリケーションはデモンストレーション目的で作成されています。p>
+      p>提供される情報は医療・獣医診断を示すものではありません。p>
+      p>ペットの健康について不安がある場合は、必ず獣医師にご相談ください。p>
+    div>
+  div>
+  script>
+    // Pet name management
+    const petNameDisplay = document.getElementById('petNameDisplay');
+    const petNameInput = document.getElementById('petName');
+    const savePetNameBtn = document.getElementById('savePetNameBtn');
+    
+    // Load pet name from localStorage
+    const savedName = localStorage.getItem('pawcare_petName');
+    if (savedName) {
+      petNameInput.value = savedName;
+      petNameDisplay.textContent = '🐾 ' + savedName;
+    }
+    
+    savePetNameBtn.addEventListener('click', function() {
+      const name = petNameInput.value.trim();
+      if (name) {
+        localStorage.setItem('pawcare_petName', name);
+        petNameDisplay.textContent = '🐾 ' + name;
+        petNameInput.value = '';
+        alert('名前を保存しました！');
+      } else {
+        alert('ペットの名前を入力してください。');
+      }
+    });
+    
+    // Health log management
+    const eventType = document.getElementById('eventType');
+    const eventNotes = document.getElementById('eventNotes');
+    const addLogBtn = document.getElementById('addLogBtn');
+    const logsContainer = document.getElementById('logsContainer');
+    const entriesCount = document.getElementById('entriesCount');
+    
+    // Load logs from localStorage
+    let logs = JSON.parse(localStorage.getItem('pawcare_logs') || '[]');
+    
+    function renderLogs() {
+      if (logs.length === 0) {
+        logsContainer.innerHTML = 'p>まだ記録がありません。p>';
+      } else {
+        logsContainer.innerHTML = '';
+        logs.forEach(function(log, index) {
+          const entry = document.createElement('div');
+          entry.className = 'log-entry';
+          entry.innerHTML = '
+            div class="datetime">' + log.datetime + ' /div>
+            div class="event">[' + log.event + '] div>
+            div class="notes">' + (log.notes || '') + ' /div>
+          ';
+          logsContainer.appendChild(entry);
+        });
+      }
+      entriesCount.textContent = logs.length + ' 件の記録';
+    }
+    
+    renderLogs();
+    
+    addLogBtn.addEventListener('click', function() {
+      const event = eventType.value;
+      const notes = eventNotes.value.trim();
+      const now = new Date();
+      const datetime = now.getFullYear() + '/' +
+        String(now.getMonth() + 1).padStart(2, '0') + '/' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0');
+      
+      logs.unshift({ datetime: datetime, event: event, notes: notes });
+      localStorage.setItem('pawcare_logs', JSON.stringify(logs));
+      eventNotes.value = '';
+      renderLogs();
+    });
+    
+    // Symptom consultation
+    const emergencyAlert = document.getElementById('emergencyAlert');
+    const symptomNote = document.getElementById('symptomNote');
+    const symptomMessage = document.getElementById('symptomMessage');
+    
+    document.querySelectorAll('.symptom-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const symptom = this.getAttribute('data-symptom');
+        emergencyAlert.style.display = 'none';
+        symptomNote.style.display = 'none';
+        
+        if (symptom === '呼吸困難' || symptom === '意識障害') {
+          symptomMessage.textContent = '「' + symptom + '」が観察されます。これは緊急を要する状態です。すぐに動物病院へ連絡してください。';
+          emergencyAlert.style.display = 'block';
+        } else {
+          const messages = {
+            '嘔吐': '嘔吐が続く場合は、脱水症のリスクがあります。頻繁に嘔吐する場合は獣医師に相談してください。',
+            '食欲不振': '食欲不振が続く場合は、様々な病気の可能性があります。数日続く場合は獣医師に相談してください。'
+          };
+          symptomMessage.textContent = messages[symptom] || '症状についての情報です。';
+          symptomNote.style.display = 'block';
+        }
+      });
+    });
+  script>
+body>
+html>
