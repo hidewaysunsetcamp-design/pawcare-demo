@@ -1,1 +1,70 @@
-!doctype html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PAWCARE｜ペットの健康記録と緊急時メモ</title>
+  <meta name="description" content="ペットの毎日の健康記録と、体調不良・緊急時に動物病院へ伝える問診メモを整理するアプリ（デモ版）。">
+  <meta name="theme-color" content="#1f7a68">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PAWCARE">
+  <meta property="og:title" content="PAWCARE｜ペットの健康記録と緊急時メモ">
+  <meta property="og:description" content="ごはん・お散歩・体調の変化を記録して、もしもの時は動物病院に伝えるメモをすぐ作成。">
+  <meta property="og:url" content="https://hidewaysunsetcamp-design.github.io/pawcare-demo/">
+  <meta property="og:image" content="https://hidewaysunsetcamp-design.github.io/pawcare-demo/icons/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PAWCARE">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <noscript>
+    <p class="noscript">PAWCAREを利用するにはJavaScriptを有効にしてください。</p>
+  </noscript>
+
+  <header class="app-header">
+    <div class="brand">
+      <img src="icons/icon-192.png" alt="" width="28" height="28">
+      <span>PAWCARE</span>
+    </div>
+    <button type="button" class="header-emergency" data-nav="emergency" aria-label="緊急時の案内を開く">緊急時</button>
+  </header>
+
+  <div id="storageBanner" class="storage-banner" hidden></div>
+
+  <main id="app" class="app-main" aria-live="polite">
+    <p class="loading">読み込み中…</p>
+  </main>
+
+  <nav class="bottom-nav" aria-label="メインメニュー">
+    <button type="button" data-nav="home"><span class="ico" aria-hidden="true">🏠</span><span>ホーム</span></button>
+    <button type="button" data-nav="logs"><span class="ico" aria-hidden="true">📝</span><span>記録</span></button>
+    <button type="button" data-nav="interview"><span class="ico" aria-hidden="true">🩺</span><span>問診</span></button>
+    <button type="button" data-nav="pets"><span class="ico" aria-hidden="true">🐾</span><span>ペット</span></button>
+    <button type="button" data-nav="settings"><span class="ico" aria-hidden="true">⚙️</span><span>設定</span></button>
+  </nav>
+
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-close-sheet></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-head">
+        <h2 id="sheetTitle"></h2>
+        <button type="button" class="icon-btn" data-close-sheet aria-label="閉じる">✕</button>
+      </div>
+      <div id="sheetBody" class="sheet-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
