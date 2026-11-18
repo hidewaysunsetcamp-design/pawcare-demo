@@ -508,6 +508,35 @@ def run(device_name):
         ov = page.evaluate('document.documentElement.scrollWidth - window.innerWidth')
         check(f'[{tag}] 健康手帳で横はみ出しなし', ov <= 0, f'{ov}px')
 
+        # ---------- v1.7 EXP・レベル・勲章 ----------
+        page.keyboard.press('Escape')
+        page.evaluate('location.hash = "#/home"'); page.wait_for_timeout(200)
+        gb = page.inner_text('.game-bar')
+        check(f'[{tag}] ホームにレベル・EXP・ペットの一言', 'Lv.' in gb and 'EXP' in gb and '「' in gb, gb)
+        page.click('.game-bar'); page.wait_for_timeout(200)
+        gt = page.inner_text('#app')
+        check(f'[{tag}] がんばり画面：勲章とEXPのもらい方', '勲章' in gt and 'EXPのもらい方' in gt and 'ペットの健康状態を評価するものではありません' in gt)
+        exp1 = page.evaluate('(() => { const t = document.querySelector(".gh-lv").textContent; return t; })()')
+        # 同じ日に記録を連打してもEXPが件数分は増えない
+        before = page.evaluate('window.__PAWCARE__.getDb().logs.length')
+        page.evaluate('location.hash = "#/home"'); page.wait_for_timeout(150)
+        e_before = page.inner_text('.gb-exp')
+        for _ in range(5):
+            page.click('.quick-btn[data-cat=water]'); page.wait_for_timeout(60)
+        page.keyboard.press('Escape'); page.wait_for_timeout(150)
+        e_after = page.inner_text('.gb-exp')
+        check(f'[{tag}] 同じ日の連打ではEXPが増えすぎない', e_before == e_after, f'{e_before} -> {e_after}')
+        # 新しい端末：最初の記録で勲章のお知らせ
+        nctx = browser.new_context(**dev, locale='ja-JP', timezone_id='Asia/Tokyo')
+        np_ = nctx.new_page(); np_.on('pageerror', lambda e: errors.append('game:' + str(e)))
+        np_.goto(URL); np_.wait_for_selector('.bottom-nav')
+        np_.click('text=＋ ペットを登録する'); np_.fill('input[name=name]', 'テン'); np_.click('form[data-form=pet] button[type=submit]'); np_.wait_for_timeout(300)
+        np_.click('.quick-btn[data-cat=food]'); np_.wait_for_timeout(200)
+        np_.click('#toast button:has-text("取消")') if False else None
+        np_.wait_for_function('() => document.querySelector("#toast") && document.querySelector("#toast").textContent.includes("はじめの一歩")', timeout=12000)
+        check(f'[{tag}] 最初の記録で勲章「はじめの一歩」のお知らせ', True)
+        nctx.close()
+
         check(f'[{tag}] JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 

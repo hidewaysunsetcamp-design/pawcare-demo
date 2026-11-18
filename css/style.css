@@ -390,3 +390,27 @@ body[data-view=book] .storage-banner { display: none; }
   .no-print { display: none !important; }
 }
 @media print { body[data-view=book] .app-main { max-width: none; padding: 0; } }
+
+/* v1.7 がんばり（EXP・レベル・勲章） */
+.game-bar { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; width: 100%; text-align: left; padding: 12px 14px; }
+.gb-lv { grid-row: span 2; font-weight: 800; font-size: 1.15rem; color: #fff; background: linear-gradient(135deg, #1f7a68, #2ea58a); border-radius: 12px; padding: 10px 10px; min-width: 3.6em; text-align: center; }
+.gb-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gb-title { font-weight: 700; font-size: .92rem; }
+.gb-streak { color: #c2410c; font-weight: 700; font-size: .85rem; }
+.gb-track { display: block; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.gb-track span { display: block; height: 100%; background: #e8a33d; border-radius: 99px; }
+.gb-track.big { height: 12px; margin: 8px 0 4px; }
+.gb-exp { font-size: .72rem; color: var(--muted); }
+.gb-say { grid-column: 1 / -1; font-size: .85rem; background: #fffdf3; border: 1px solid #f0e2a8; border-radius: 12px; padding: 6px 10px; }
+.game-hero { text-align: center; }
+.gh-lv { font-size: 2rem; font-weight: 800; color: #1f7a68; margin: 0; }
+.gh-title { font-weight: 700; margin: 0; }
+.gh-say { background: #fffdf3; border: 1px solid #f0e2a8; border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
+.medals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.medal { border: 1px solid var(--line); border-radius: 14px; padding: 10px 6px; text-align: center; display: flex; flex-direction: column; gap: 2px; background: #f7f7f7; }
+.medal .m-icon { font-size: 1.7rem; filter: grayscale(1); opacity: .35; }
+.medal .m-name { font-weight: 700; font-size: .78rem; color: var(--muted); }
+.medal .m-how { font-size: .66rem; color: var(--muted); line-height: 1.35; }
+.medal.got { background: #fff8e6; border-color: #f0d58a; }
+.medal.got .m-icon { filter: none; opacity: 1; }
+.medal.got .m-name { color: var(--text); }
