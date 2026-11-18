@@ -370,3 +370,23 @@ body[data-view=cardview] { padding-bottom: 24px; }
 @media print { .moshimo { border-width: 1px; max-width: 148mm; } }
 .kp-dl { grid-template-columns: 7.5em 1fr; }
 .kp-dl dd { white-space: pre-line; }
+
+/* v1.6 健康手帳 */
+.book-cover h1 { font-size: 1.6rem; margin: 6px 0 10px; }
+.book-list { list-style: none; margin: 0; padding: 0; font-size: .9rem; }
+.book-list li { padding: 6px 0; border-top: 1px solid var(--line); }
+.wchart { width: 100%; height: auto; display: block; margin: 4px 0 10px; }
+.wgrid { stroke: #e2e9e6; stroke-width: 1; }
+.wtick { fill: #64746f; font-size: 12px; }
+.wline { fill: none; stroke: #1f7a68; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.wdot { fill: #1f7a68; stroke: #fff; stroke-width: 2; }
+.whit { fill: transparent; }
+.wpt:hover .wdot { r: 6; }
+.wlabel { fill: #1d2b28; font-size: 13px; font-weight: 700; }
+body[data-view=book] .storage-banner { display: none; }
+@media print {
+  body[data-view=book] .card { break-inside: avoid; page-break-inside: avoid; border: 1px solid #cfdad6; }
+  body[data-view=book] .book-cover { border: 2px solid #1f7a68; }
+  .no-print { display: none !important; }
+}
+@media print { body[data-view=book] .app-main { max-width: none; padding: 0; } }
