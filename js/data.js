@@ -56,6 +56,38 @@ window.PAWCARE_DATA = (function () {
     other: ['food', 'water', 'stool', 'urine', 'vomit', 'medicine', 'weight', 'ingest', 'walk', 'other']
   };
 
+  /* ごはんチェック（v1.4）：一般的な目安の計算に使う定数
+   * 栄養基準：AAFCO Dog/Cat Food Nutrient Profiles（乾物量あたりの最低値）
+   * エネルギー：RER = 70 × 体重(kg)^0.75、維持係数は一般的な目安
+   * おやつ：1日のカロリーの10%まで（WSAVA等で広く使われる目安） */
+  var NUTRITION = {
+    aafco: {
+      dog: { adult: { protein: 18, fat: 5.5 }, growth: { protein: 22.5, fat: 8.5 } },
+      cat: { adult: { protein: 26, fat: 9 }, growth: { protein: 30, fat: 9 } }
+    },
+    factor: { dog: { neutered: 1.6, intact: 1.8 }, cat: { neutered: 1.2, intact: 1.4 } },
+    treatLimit: 0.10,
+    foodTypes: [
+      { id: 'complete', label: '総合栄養食（主食のフード）' },
+      { id: 'general', label: '一般食・副食（トッピング・ウェットの一部など）' },
+      { id: 'treat', label: 'おやつ' },
+      { id: 'homemade', label: '手作り・人の食べ物' }
+    ],
+    /* 人の食べ物で特に危険とされるもの（キーワード：表示名） */
+    toxic: [
+      { k: ['玉ねぎ', 'たまねぎ', 'タマネギ', 'ねぎ', 'ネギ', 'にら', 'ニラ', 'にんにく', 'ニンニク', 'らっきょう'], name: 'ネギ類（玉ねぎ・長ねぎ・にら・にんにくなど）', both: true },
+      { k: ['ぶどう', 'ブドウ', '葡萄', 'レーズン', '干しぶどう'], name: 'ぶどう・レーズン', both: true },
+      { k: ['チョコ', 'ココア', 'カカオ'], name: 'チョコレート・ココア', both: true },
+      { k: ['キシリトール', 'ガム'], name: 'キシリトール（ガム・菓子など）', both: true },
+      { k: ['マカダミア'], name: 'マカダミアナッツ', dog: true },
+      { k: ['アルコール', 'お酒', 'ビール', 'ワイン'], name: 'アルコール', both: true },
+      { k: ['コーヒー', 'カフェイン', '紅茶', '緑茶', 'エナジードリンク'], name: 'カフェイン（コーヒー・お茶など）', both: true },
+      { k: ['骨', 'ほね'], name: '加熱した骨（割れて刺さるおそれ）', both: true },
+      { k: ['ユリ', 'ゆり', '百合'], name: 'ユリ（花・葉・花粉・花瓶の水も）', cat: true },
+      { k: ['人の薬', '鎮痛剤', '風邪薬', 'イブプロフェン', 'アセトアミノフェン'], name: '人の薬', both: true }
+    ]
+  };
+
   var SEXES = [
     { id: 'male', label: 'オス' },
     { id: 'female', label: 'メス' },
@@ -140,7 +172,7 @@ window.PAWCARE_DATA = (function () {
   ];
 
   return {
-    QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
+    NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,

@@ -334,3 +334,15 @@ body[data-view=view] { padding-bottom: 24px; }
 .kp-dl { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px 10px; margin: 0; font-size: .95rem; }
 .kp-dl dt { color: var(--muted); font-weight: 600; }
 .kp-dl dd { margin: 0; font-weight: 600; }
+
+/* v1.4 ごはんチェック */
+.nu-need { font-size: 1.05rem; margin-bottom: 8px; }
+.nu-need small { display: block; color: var(--muted); font-size: .8rem; }
+.nu-findings, .nu-sugg { list-style: none; margin: 0; padding: 0; }
+.nu-findings li { display: flex; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .92rem; }
+.nu-findings li.nu-warn { color: #6b4300; }
+.nu-sugg li { padding: 6px 0 6px 1.2em; position: relative; font-size: .92rem; }
+.nu-sugg li::before { content: "・"; position: absolute; left: 0; }
+.toxic-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+.toxic-row input { margin-top: 0 !important; }
+.toxic-row .btn { flex: 0 0 auto; }
