@@ -561,6 +561,25 @@ def run(device_name):
         check(f'[{tag}] 誤食の疑いを記録するとホームの一番上に電話の案内', hp.locator('#app > .home-danger').count() == 1 and '今すぐ電話' in hp.inner_text('.home-danger'))
         hctx.close()
 
+        # ---------- v1.9 プラン・広告枠 ----------
+        page.keyboard.press('Escape')
+        page.evaluate('location.hash = "#/plans"'); page.wait_for_timeout(150)
+        pt = page.inner_text('#app')
+        check(f'[{tag}] プラン画面（無料・プロ480円・ファミリー780円・診断しない）', all(x in pt for x in ['無料', '月480円', '月780円', '家族4人', '診断や治療の指示はしません']))
+        page.evaluate('location.hash = "#/nutrition"'); page.wait_for_timeout(150)
+        check(f'[{tag}] ごはんチェックにプロへの案内', page.locator('#app .upsell[data-nav=plans]').count() == 1)
+        check(f'[{tag}] 広告が未設定ならどこにも出ない', page.locator('.ad-card').count() == 0)
+        # 広告を1件入れた場合：ホームと記録だけに「PR」付きで出て、緊急時・問診・ごはんチェックには出ない
+        page.evaluate("PAWCARE_DATA.ADS.push({title:'テスト広告', text:'説明', url:'https://example.com/', sponsor:'テスト社', slots:['home','logs','emergency','interview','nutrition']})")
+        shown = {}
+        for v in ['home', 'logs', 'emergency', 'interview', 'nutrition']:
+            page.evaluate(f'location.hash = "#/{v}"'); page.wait_for_timeout(150)
+            shown[v] = page.locator('.ad-card').count()
+        check(f'[{tag}] 広告はホームと記録だけ（PR表示つき）', shown['home'] == 1 and shown['logs'] == 1 and shown['emergency'] == 0 and shown['interview'] == 0 and shown['nutrition'] == 0, str(shown))
+        page.evaluate('location.hash = "#/home"'); page.wait_for_timeout(150)
+        check(f'[{tag}] 広告に「PR」と提供元、rel=sponsored', 'PR' in page.inner_text('.ad-card') and 'テスト社' in page.inner_text('.ad-card') and 'sponsored' in page.get_attribute('.ad-card', 'rel'))
+        page.evaluate('PAWCARE_DATA.ADS.length = 0')
+
         check(f'[{tag}] JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 

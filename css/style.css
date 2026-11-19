@@ -437,3 +437,16 @@ body[data-view=book] .storage-banner { display: none; }
 .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: #f4f7f6; border-radius: 14px; padding: 10px 2px; font-size: .7rem; font-weight: 700; line-height: 1.25; color: var(--text); min-height: 74px; }
 .tile span { font-size: 1.5rem; line-height: 1; }
 .sheet .prep { border: 0; box-shadow: none; padding: 0; }
+
+/* v1.9 プラン・広告枠 */
+.plans { display: grid; gap: 12px; }
+.plan-price { font-size: 1.25rem; font-weight: 800; color: var(--brand-dark); margin: 4px 0; }
+.plan-items { margin: 8px 0 0; padding-left: 1.2em; font-size: .9rem; }
+.plan-pro { border-color: #9fd3c4; }
+.plan-family { border-color: #f0d58a; }
+.upsell { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #f2f7ff; border: 1px solid #cfe0f7; border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: .85rem; color: #1d3557; }
+.upsell .chev { margin-left: auto; }
+.ad-card { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--text); position: relative; padding-top: 22px; }
+.ad-label { position: absolute; top: 8px; left: 12px; font-size: .65rem; font-weight: 800; color: #6b4300; background: #fff3dc; border: 1px solid #f0d58a; border-radius: 4px; padding: 0 5px; }
+.ad-title { font-weight: 700; }
+.ad-sponsor { font-size: .72rem; color: var(--muted); }

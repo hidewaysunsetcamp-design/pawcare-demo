@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.8.0';
+  const APP_VERSION = '1.9.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -262,7 +262,7 @@
   /* ============================================================
    * ルーティング
    * ============================================================ */
-  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game'];
+  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans'];
   let currentView = 'home';
   function go(view) {
     if (location.hash !== '#/' + view) location.hash = '#/' + view;
@@ -288,9 +288,9 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     document.body.dataset.view = currentView;
-    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game'].indexOf(currentView) >= 0 ? 'home' : currentView;
+    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans'].indexOf(currentView) >= 0 ? 'home' : currentView;
     document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === navView));
-    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame }[currentView];
+    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans }[currentView];
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
@@ -348,6 +348,7 @@
     const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
       ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['game', '🎖', 'がんばり']];
     html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
+    html += adSlotHtml('home');
     return html + localNotice;
   }
 
@@ -411,6 +412,7 @@
     html += groupedLogsHtml(list, logFilter.petId === 'all' && db.pets.length > 1);
     if (list.length) {
       html += '<button type="button" class="btn ghost block" data-action="exportCsv">表示中の記録をCSVで書き出す</button>';
+      html += adSlotHtml('logs');
     }
     return html;
   }
@@ -919,6 +921,7 @@
       '<label class="btn ghost block file-btn">バックアップ・健康手帳ファイルを読み込む<input type="file" accept="application/json,.json" data-action-change="importJson"></label>' +
       '<button type="button" class="btn ghost block" data-action="exportAllCsv"' + (db.logs.length ? '' : ' disabled') + '>すべての記録をCSVで書き出す</button></div></section>';
 
+    html += '<section class="card"><h2>💎 プラン</h2><p class="small">いまのプラン：<strong>無料</strong></p><p class="muted small">プロ（月480円）・ファミリー（月780円）は準備中です。</p><button type="button" class="btn ghost block" data-nav="plans">プランを見る</button></section>';
     html += '<section class="card"><h2>📤 外部に送られるデータ</h2><p class="muted small">PAWCAREにはサーバーがなく、通常の記録は端末の外に送られません。次の操作をしたときだけ、外部のサービスに情報が渡ります。</p><ul class="small">' +
       '<li><strong>病院への共有リンク</strong>：選んだ情報がリンク自体に入ります。LINE・メールで送ると、その送信履歴にも残ります。</li>' +
       '<li><strong>Googleカレンダーに追加</strong>：ペット名・予定名・メモがGoogleに送られます。</li>' +
@@ -1545,6 +1548,7 @@
     const a = nutritionAnalysis(pet);
     if (a.stop) return html + '<div class="alert warn">' + esc(a.stop) + '</div>' + toxicCheckHtml(pet);
 
+    html += upsellHtml('pro');
     html += '<section class="card"><div class="row-between"><h2>あげているもの（1日分）</h2><button type="button" class="btn primary small" data-action="newFood">＋ 追加</button></div>';
     html += a.foods.length ? '<ul class="log-list">' + a.foods.map((f) =>
       '<li><button type="button" class="log-item" data-action="editFood" data-id="' + esc(f.id) + '"><span class="log-main"><span class="log-cat">' + esc(f.name) + '</span><span class="log-memo">' + esc(foodTypeLabel(f.type)) + '・' + (f.grams ? esc(f.grams) + 'g' : '量未入力') + (foodKcal(f) ? '・約' + Math.round(foodKcal(f)) + 'kcal' : '') + '</span></span><span class="chev" aria-hidden="true">›</span></button></li>').join('') + '</ul>'
@@ -2138,7 +2142,7 @@
     }
     const text = L.join('\n');
     $sheetTitle.textContent = '引き継ぎ文ができました';
-    $sheetBody.innerHTML = '<pre class="memo handoff-text">' + esc(text) + '</pre><div class="form-actions"><button type="button" class="btn primary block" data-action="copyHandoff">コピー</button>' +
+    $sheetBody.innerHTML = '<pre class="memo handoff-text">' + esc(text) + '</pre>' + upsellHtml('family') + '<div class="form-actions"><button type="button" class="btn primary block" data-action="copyHandoff">コピー</button>' +
       (navigator.share ? '<button type="button" class="btn ghost block" data-action="shareHandoff">LINE・メールで送る</button>' : '') + '</div>';
   }
   function sanitizeHandoff(raw) {
@@ -2430,6 +2434,35 @@
     const msg = m ? '🎖 勲章「' + m.name + '」を獲得！' + (lvUp ? '（Lv.' + L.lv + 'にアップ）' : '') : '⬆️ レベルアップ！ Lv.' + L.lv + '「' + L.title + '」';
     setTimeout(() => toastWhenFree(msg, [{ label: '見る', fn: () => go('game') }]), 300);
   }
+
+  /* ============================================================
+   * 料金プラン（ADR-012）。課金はクラウド化のあと。今は案内と準備中の表示だけ
+   * ============================================================ */
+  const PLANS = [
+    { id: 'free', name: '無料', price: '0円', note: '命に関わる機能は、ずっと無料です', items: ['毎日の記録・ワンタップ記録', '緊急時の案内・電話の読み上げメモ', '病院に渡すQRの要点', 'もしもカード・問診メモ', 'ごはんチェック（計算）', '健康手帳（直近3か月）'] },
+    { id: 'pro', name: 'プロ', price: '月480円（年4,800円）', note: 'AIの栄養管理で、毎日のごはんを見守る', items: ['無料プランのすべて', 'AIの栄養管理（フードの写真から成分を読み取り・月30回まで）', '体重目標の見守り・補える食品タイプの提案', 'AIの問診補助（追加の質問・要点の整理）', '月1回の振り返りレポート', '健康手帳のフル版', '広告なし'] },
+    { id: 'family', name: 'ファミリー', price: '月780円（年7,800円）', note: '家族4人で、同じ子を一緒に見守る', items: ['プロのすべて', '家族4人で共有（自動で同期）', '服薬の担当を決める・家族へのお知らせ', '広告なし'] }
+  ];
+  function plansHtml() {
+    return '<div class="plans">' + PLANS.map((p) => '<section class="card plan plan-' + p.id + '"><div class="row-between"><h2>' + esc(p.name) + '</h2>' + (p.id === 'free' ? '<span class="tag">利用中</span>' : '<span class="tag warn">準備中</span>') + '</div>' +
+      '<p class="plan-price">' + esc(p.price) + '</p><p class="muted small">' + esc(p.note) + '</p><ul class="plan-items">' + p.items.map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul></section>').join('') + '</div>' +
+      '<p class="notice-small">プロ・ファミリーは準備中です（クラウドファンディングでの先行受付を予定しています）。価格は予定で、変わることがあります。<br>AIは病気の診断や治療の指示はしません。</p>';
+  }
+  function renderPlans() { return '<h1 class="page-title">💎 プラン</h1>' + plansHtml(); }
+  function upsellHtml(kind) {
+    const t = kind === 'family' ? ['👪', 'ファミリープラン（準備中）なら、家族4人で記録を自動で共有できます。'] : ['💎', 'プロプラン（準備中）なら、AIがフードの写真から成分を読み取り、毎日のごはんを見守ります。'];
+    return '<button type="button" class="upsell" data-nav="plans"><span aria-hidden="true">' + t[0] + '</span><span>' + esc(t[1]) + '</span><span class="chev" aria-hidden="true">›</span></button>';
+  }
+
+  /* 広告枠（無料プランだけ・必ず「PR」表示・命に関わる画面やAIの結果には出さない） */
+  const AD_SLOTS = ['home', 'logs'];
+  function adSlotHtml(slot) {
+    const ads = (D.ADS || []).filter((a) => a.slots && a.slots.indexOf(slot) >= 0 && /^https:\/\//.test(a.url));
+    if (AD_SLOTS.indexOf(slot) < 0 || !ads.length || currentPlan() !== 'free') return '';
+    const a = ads[(new Date().getDate()) % ads.length];
+    return '<a class="card ad-card" href="' + esc(a.url) + '" target="_blank" rel="sponsored noopener noreferrer"><span class="ad-label">PR</span><span class="ad-title">' + esc(a.title) + '</span><span class="muted small">' + esc(a.text || '') + '</span><span class="ad-sponsor">提供：' + esc(a.sponsor || '') + '</span></a>';
+  }
+  function currentPlan() { return 'free'; /* 課金の実装まではすべて無料プラン */ }
 
   /* ============================================================
    * イベント処理
