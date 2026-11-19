@@ -1107,6 +1107,23 @@ def run_v11(device_name):
         st = get_db(page)['settings']
         check(f'[{tag}] 音と振動をオフにできる', st.get('sound') == 'off' and st.get('haptic') == 'off', str({k: st.get(k) for k in ['sound', 'haptic']}))
 
+        # ---------- v1.14.1 緊急時はお祝いを出さない・電話を最初に ----------
+        page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); const p = d.pets.find(x => x.id === d.settings.activePetId); p.daily = ['food'];
+          const t = new Date(); const pad = (x) => String(x).padStart(2, '0'); const day = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+          d.logs = d.logs.filter(l => !(l.petId === p.id && l.datetime.slice(0, 10) === day)); d.settings.sound = 'on'; localStorage.setItem('pawcare.v1', JSON.stringify(d)); }""")
+        page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        page.click('.care-row[data-cat=food]')
+        page.evaluate('location.hash = "#/emergency"'); page.wait_for_timeout(1300)
+        check(f'[{tag}] 最後の1つの直後に緊急時へ→お祝いを出さない', page.locator('#celebrate').count() == 0 and page.locator('.confetti').count() == 0 and page.locator('#toast').is_hidden())
+        order = page.evaluate("() => { const c = document.querySelector('.call-first'), d = document.querySelector('#app .danger-signs, #app .alert'); return c && (!d || (c.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING) > 0); }")
+        check(f'[{tag}] 緊急時の画面は電話のカードが一番上', bool(order))
+        dctx = browser.new_context(**dev, locale='ja-JP', timezone_id='Asia/Tokyo'); dp = dctx.new_page()
+        dp.goto(URL + '#/demo'); wait_rendered(dp); dp.evaluate('location.hash = "#/emergency"'); dp.wait_for_timeout(300)
+        tel = dp.eval_on_selector_all('.call-first a[href^="tel:"]', 'a => a.map(x => x.getAttribute("href"))')
+        top = dp.evaluate("() => { const a = document.querySelector('.call-first a[href^=\"tel:\"]'); return a ? a.getBoundingClientRect().bottom : 9999; }")
+        check(f'[{tag}] デモでも電話ボタンが出る（架空の000番号）', tel == ['tel:00000000001', 'tel:00000000002'], str(tel))
+        check(f'[{tag}] 電話ボタンが最初の1画面に入る', top < dp.viewport_size['height'], str(top))
+        dctx.close()
         check(f'[{tag}] v1.1 JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 

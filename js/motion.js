@@ -173,6 +173,7 @@
     tap: function (c, t) { tone(c, t, 660, 0.06, 'sine', 0.06, 990); },                          /* なでる：ぷっ */
     error: function (c, t) { tone(c, t, 300, 0.1, 'triangle', 0.1); tone(c, t + 0.11, 220, 0.14, 'triangle', 0.1); }
   };
+  function silence() { try { if (ac && ac.state === 'running') ac.suspend(); } catch (x) { /* 何もしない */ } }
   function sound(name, on) {
     if (on === false || !SOUNDS[name]) return;
     try { var c = ctx(); if (c) SOUNDS[name](c, c.currentTime + 0.01); } catch (x) { /* 鳴らせない端末 */ }
@@ -203,5 +204,5 @@
     }
   }
 
-  window.PAWCARE_MOTION = { hapticOn: function () { return true; }, sound: sound, haptic: haptic, shake: shake, pop: pop, confetti: confetti, withLoading: withLoading, sheetDrag: sheetDrag, closeSwipes: closeSwipes, enter: enter, reduced: reduced };
+  window.PAWCARE_MOTION = { silence: silence, hapticOn: function () { return true; }, sound: sound, haptic: haptic, shake: shake, pop: pop, confetti: confetti, withLoading: withLoading, sheetDrag: sheetDrag, closeSwipes: closeSwipes, enter: enter, reduced: reduced };
 })();

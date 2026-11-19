@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.14.0';
+  const APP_VERSION = '1.14.1';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -299,6 +299,7 @@
     const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans', 'guide', 'avatar'].indexOf(currentView) >= 0 ? 'home' : currentView;
     document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === navView));
     const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans, guide: renderGuide, avatar: renderAvatar }[currentView];
+    if (CALM_VIEWS.indexOf(currentView) >= 0) stopCelebrations();
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
     if (currentView !== lastView && currentView !== 'emergency' && !isRerender) M.enter($app);
@@ -457,13 +458,28 @@
       else {
         const ld = last.datetime.slice(0, 10);
         const lastTxt = ld === days[6] ? '今日' : ld === days[5] ? 'きのう' : (ld >= days[0] ? wk[new Date(ld + 'T12:00').getDay()] + '曜日' : fmtShort(last.datetime).split(' ')[0]);
-        note = '最後は' + lastTxt + (c === 'weight' && last.value ? '（' + last.value + 'kg）' : '') + (nPrev && n7 !== nPrev ? '・先週より' + Math.abs(n7 - nPrev) + '回' + (n7 > nPrev ? '多い' : '少ない') : '');
+        note = '最後の記録は' + lastTxt + (c === 'weight' && last.value ? '（' + last.value + 'kg）' : '') + (nPrev && n7 !== nPrev ? '・記録は先週より' + Math.abs(n7 - nPrev) + '回' + (n7 > nPrev ? '多い' : '少ない') : '');
       }
       const cat = categoryOf(c);
-      return '<li><span class="wm-ic" aria-hidden="true">' + cat.emoji + '</span><span class="wm-main"><span class="wm-title">今週の' + esc(cat.label) + ' <b>' + n7 + '回</b></span><small>' + esc(note) + '</small></span>' +
+      return '<li><span class="wm-ic" aria-hidden="true">' + cat.emoji + '</span><span class="wm-main"><span class="wm-title">' + esc(cat.label) + 'の記録 <b>今週' + n7 + '回</b></span><small>' + esc(note) + '</small></span>' +
         '<span class="wm-dots" aria-hidden="true">' + days.map((d) => '<i class="' + (set.has(d) ? 'on' : '') + '"></i>').join('') + '</span></li>';
     }).join('');
-    return '<section class="card week-map"><div class="row-between"><h2>今週のようす</h2><span class="small muted">' + esc(wk[new Date(days[0] + 'T12:00').getDay()]) + '〜' + esc(wk[new Date(days[6] + 'T12:00').getDay()]) + '</span></div><ul class="wm-list">' + rows + '</ul></section>';
+    return '<section class="card week-map"><div class="row-between"><h2>今週の記録</h2><span class="small muted">' + esc(wk[new Date(days[0] + 'T12:00').getDay()]) + '〜' + esc(wk[new Date(days[6] + 'T12:00').getDay()]) + '</span></div><ul class="wm-list">' + rows + '</ul></section>';
+  }
+
+  /* お祝いを出してよいか：出す直前に、今いる画面と危険の案内をもう一度確かめる（CLAUDE.md 決まり6） */
+  const CALM_VIEWS = ['emergency', 'interview', 'card', 'cardview', 'view'];
+  function celebrationAllowed(pet) {
+    if (CALM_VIEWS.indexOf(currentView) >= 0) return false;
+    const p = pet || activePet();
+    return !(p && homeDangerBanner(p));
+  }
+  /* 緊急時などの画面に入ったら、お祝い・紙吹雪・お知らせ・音をすべて止める */
+  function stopCelebrations() {
+    const c = document.getElementById('celebrate'); if (c) c.remove();
+    document.querySelectorAll('.confetti').forEach((x) => x.remove());
+    $toast.hidden = true;
+    M.silence();
   }
 
   /* パーフェクトのお祝い画面（Duolingoのレッスン完了のように）。危険の案内中は出さない */
@@ -483,8 +499,8 @@
     const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 220); };
     box.querySelector('.cel-next').addEventListener('click', close);
     box.querySelector('.cel-next').focus();
-    setTimeout(() => { M.sound('stamp', soundOn()); if (hapticOn()) M.haptic('stamp'); }, 650);
-    setTimeout(M.confetti, 700);
+    setTimeout(() => { if (!document.getElementById('celebrate') || !celebrationAllowed(pet)) return; M.sound('stamp', soundOn()); if (hapticOn()) M.haptic('stamp'); }, 650);
+    setTimeout(() => { if (document.getElementById('celebrate') && celebrationAllowed(pet)) M.confetti(); }, 700);
   }
   /* 毎日の「記録の時間」をカレンダーに登録（無料の通知のかわり） */
   function dailyReminderObj(time) {
@@ -1035,9 +1051,8 @@
     const h = db.settings.hospital;
     const pet = activePet();
     let html = '<h1 class="page-title emergency-title">🚨 緊急時の案内</h1>';
-    html += dangerSignsHtml();
-
-    html += '<section class="card"><h2>📞 動物病院へ連絡する</h2>';
+    /* 電話のボタンを最初の画面に（v1.14.1）。危険な様子の一覧はそのあと */
+    html += '<section class="card call-first"><h2>📞 動物病院へ連絡する</h2>';
     if (h.phone) {
       html += '<a class="btn danger block big" href="tel:' + esc(h.phone.replace(/[^\d+]/g, '')) + '">' + esc(h.name || 'かかりつけの動物病院') + 'に電話する<small>' + esc(h.phone) + '</small></a>';
       if (h.note) html += '<p class="muted small pre">' + esc(h.note) + '</p>';
@@ -1053,6 +1068,7 @@
     }
     html += '<p class="muted small">診療時間外や受け入れ可否は病院ごとに異なります。<strong>向かう前に必ず電話で確認してください。</strong></p>' +
       (pet ? '<button type="button" class="btn ghost block" data-nav="card">🪪 もしもカードを見せる（持病・アレルギー・薬）</button>' : '') + '</section>';
+    html += dangerSignsHtml();
 
     html += '<section class="card"><h2>🗺️ 近くの動物病院を探す</h2><p class="muted small">地図アプリで検索します。表示される営業時間などは最新でない場合があります。</p>' +
       '<div class="form-actions"><a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('動物病院') + '">近くの動物病院（Googleマップ）</a>' +
@@ -1177,6 +1193,9 @@
     const nowHm = pad(d.getHours()) + ':' + pad(d.getMinutes());
     const todayAt = (hm) => (hm <= nowHm ? at(0, hm) : at(1, hm));
     commit(() => {
+      /* デモ用の架空の病院（番号は実在しない 000 始まり）。すでに登録があれば上書きしない */
+      if (!db.settings.hospital.phone) db.settings.hospital = { name: 'さくら動物病院（デモ用・架空）', phone: '000-0000-0001', note: '診療 9:00〜12:00／16:00〜19:00（デモ用の例）' };
+      if (!db.settings.night.phone) db.settings.night = { name: '夜間救急どうぶつ病院（デモ用・架空）', phone: '000-0000-0002', note: '夜間 20:00〜翌6:00（デモ用の例）' };
       db.pets.push({ id: petId, name: 'こむぎ', species: 'dog', breed: '柴犬', birthday: (d.getFullYear() - 4) + '-04-12', sex: 'female_spayed', weight: '8.4', memo: '鶏肉アレルギーあり', createdAt: new Date().toISOString(), allergies: '鶏肉', conditionsNone: true, medsNone: true, life: { housing: 'mostly_indoor', cohabit: '猫1匹（ミント）', recentChanges: '先週からおやつを変えた' } });
       db.foods.push({ id: uid(), petId: petId, name: 'いつものドライフード（ラム）', type: 'complete', grams: '120', kcal: '360', protein: '24', fat: '12', moisture: '10' });
       db.pets.push({ id: cat, name: 'ミント', species: 'cat', breed: 'スコティッシュ・フォールド', birthday: (d.getFullYear() - 2) + '-09-03', sex: 'male_neutered', weight: '4.1', memo: '', createdAt: new Date().toISOString() });
@@ -2617,7 +2636,7 @@
     toast(msg, actions);
   }
   function checkGameNews() {
-    if (!storageOk || !db.pets.length) return;
+    if (!storageOk || !db.pets.length || !celebrationAllowed()) return;
     const g = gameStats();
     const L = levelOf(g.exp);
     const got = MEDALS.filter((m) => m.ok(g)).map((m) => m.id);
@@ -2633,7 +2652,7 @@
     setTimeout(() => toastWhenFree(msg, [{ label: '見る', fn: () => go('game') }]), 300);
     /* お祝いの紙吹雪は、危険の案内や緊急の画面が出ていないときだけ */
     const ap = activePet();
-    if (currentView !== 'emergency' && currentView !== 'interview' && !(ap && homeDangerBanner(ap))) setTimeout(M.confetti, 250);
+    setTimeout(() => { if (celebrationAllowed(ap)) M.confetti(); }, 250);
   }
 
   /* ============================================================
@@ -2774,7 +2793,7 @@
       if (cat !== 'ingest') { M.sound(combo > 1 ? 'combo' : 'tick', soundOn()); if (hapticOn()) M.haptic(combo > 1 ? 'combo' : 'success'); }
       rerender();
       if (cat !== 'ingest') M.pop(el.classList.contains('care-row') ? document.querySelector('.care-row[data-cat="' + cat + '"]') : document.querySelector('.quick-btn[data-cat="' + cat + '"]'), combo > 1 ? 'コンボ×' + combo : '+1');
-      if (cat !== 'ingest' && !wasPerfect && dailyState(pet).perfect && !homeDangerBanner(pet)) { setTimeout(() => celebratePerfect(pet), 450); return; }
+      if (cat !== 'ingest' && !wasPerfect && dailyState(pet).perfect && !homeDangerBanner(pet)) { setTimeout(() => { if (celebrationAllowed(pet)) celebratePerfect(pet); }, 450); return; }
       if (cat === 'ingest') {
         openIngestSheet(log);
         return;
