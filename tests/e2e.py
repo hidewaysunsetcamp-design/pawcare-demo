@@ -66,8 +66,8 @@ def run(device_name):
         page.fill('input[name=weight]', '9.2')
         page.screenshot(path=f'{SHOT}/{tag}-02-pet-form.png')
         page.click('form[data-form=pet] button[type=submit]')
-        page.wait_for_selector('.pet-hero')
-        check(f'[{tag}] ペット登録→ホームに表示', 'ポチ' in page.inner_text('.pet-hero'))
+        page.wait_for_selector('.stage')
+        check(f'[{tag}] ペット登録→ホームに表示', 'ポチ' in page.inner_text('.stage'))
 
         # 2頭目：猫・品種「その他」
         page.click('[data-nav=pets]')
@@ -115,7 +115,7 @@ def run(device_name):
         page.fill('input[name=value]', '9.4')
         page.click('form[data-form=log] button[type=submit]')
         page.wait_for_timeout(200)
-        check(f'[{tag}] 体重記録がプロフィールに反映', '9.4kg' in page.inner_text('.pet-hero'))
+        check(f'[{tag}] 体重記録がプロフィールに反映', '9.4kg' in page.inner_text('.stage'))
 
         # 記録一覧・絞り込み・編集・削除
         page.click('[data-nav=logs]')
@@ -667,7 +667,7 @@ def run_v11(device_name):
         page.fill('input[name=weight]', '9.2')
         page.fill('textarea[name=memo]', '鶏肉アレルギー')
         page.click('form[data-form=pet] button[type=submit]')
-        page.wait_for_selector('.pet-hero')
+        page.wait_for_selector('.stage')
         page.click('.quick-btn[data-cat=food]')
         hide_toast(page)
         pet_id = get_db(page)['pets'][0]['id']
@@ -981,6 +981,50 @@ def run_v11(device_name):
         e = page.inner_text('#app')
         check(f'[{tag}] 緊急：犬猫以外は診られる病院の検索リンク', '爬虫類を診られる動物病院を探す' in e)
         check(f'[{tag}] 緊急：犬猫以外の一般的な案内', '爬虫類の場合' in e)
+
+        # ---------- v1.11 うちの子ステージ・着せかえ・じまん画像 ----------
+        page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        check(f'[{tag}] ホームに動くアバター', page.locator('.stage svg.av.av-live').count() == 1)
+        b0 = page.inner_text('#avBubble')
+        check(f'[{tag}] アバターがしゃべりかける', len(b0) > 3 and '大丈夫' not in b0, b0)
+        page.click('.av-btn'); page.wait_for_timeout(150)
+        b1 = page.inner_text('#avBubble')
+        check(f'[{tag}] なでると反応する', b1 != b0 and page.locator('.av-btn .heart').count() == 1, b1)
+        page.click('.stage-actions [data-nav=avatar]')
+        page.wait_for_function('() => document.body.dataset.view === "avatar"')
+        page.click('.sw[data-k=color][data-v=pink]'); page.wait_for_timeout(120)
+        page.click('.sw[data-k=acc][data-v=crown]'); page.wait_for_timeout(120)
+        page.click('.sw[data-k=bg][data-v=night]'); page.wait_for_timeout(120)
+        cur = [x for x in get_db(page)['pets'] if x['id'] == get_db(page)['settings']['activePetId']][0]
+        check(f'[{tag}] 着せかえが保存される', cur.get('avatar', {}).get('color') == 'pink' and cur['avatar'].get('acc') == 'crown' and cur['avatar'].get('bg') == 'night', str(cur.get('avatar')))
+        check(f'[{tag}] 着せかえがプレビューに反映', '#F5B5C8' in page.inner_html('.stage svg'))
+        # 一覧にない値は保存しない（SVGに外部の文字列を入れない）
+        page.evaluate("""() => { const b = document.createElement('button'); b.dataset.action = 'avSet'; b.dataset.k = 'color'; b.dataset.v = '"><script>x</script>'; b.id = 'evil'; document.getElementById('app').appendChild(b); }""")
+        page.click('#evil'); page.wait_for_timeout(100)
+        cur = [x for x in get_db(page)['pets'] if x['id'] == get_db(page)['settings']['activePetId']][0]
+        check(f'[{tag}] 一覧にない着せかえ値は無視', cur['avatar']['color'] == 'pink')
+        page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); const p = d.pets.find(x => x.id === d.settings.activePetId); p.avatar = { color: '<img src=x onerror=alert(1)>', acc: 'zzz' }; localStorage.setItem('pawcare.v1', JSON.stringify(d)); }""")
+        page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        check(f'[{tag}] 壊れた着せかえ値でも既定の見た目で表示', page.locator('.stage svg.av').count() == 1 and page.locator('#app img[src=x]').count() == 0)
+        page.click('.stage-actions [data-action=shareAvatar]')
+        page.wait_for_selector('#sheet .share-img', timeout=8000)
+        nat = page.evaluate("() => { const i = document.querySelector('#sheet .share-img'); return [i.naturalWidth, i.naturalHeight]; }")
+        check(f'[{tag}] じまん画像（1080×1350）を作れる', nat == [1080, 1350], str(nat))
+        check(f'[{tag}] じまん画像の説明に健康記録は入らないと明記', '健康の記録は画像に入りません' in page.inner_text('#sheet'))
+        page.keyboard.press('Escape'); page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        # 誤食直後など危険の案内が出ているときは、ふざけず落ち着いたセリフにする
+        page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); const n = new Date(); const pad = (x) => String(x).padStart(2, '0');
+          const dt = n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate()) + 'T' + pad(n.getHours()) + ':' + pad(n.getMinutes());
+          d.logs.push({ id: 'calmtest', petId: d.settings.activePetId, category: 'ingest', datetime: dt, memo: 'テスト', value: '' }); localStorage.setItem('pawcare.v1', JSON.stringify(d)); }""")
+        page.reload(); wait_rendered(page)
+        calm = page.locator('.stage.calm').count() == 1
+        check(f'[{tag}] 危険の案内中はアバターが落ち着いたセリフ', calm and '上の案内' in page.inner_text('#avBubble'), page.inner_text('#avBubble'))
+        page.click('.av-btn'); page.wait_for_timeout(120)
+        check(f'[{tag}] 危険の案内中はなでても遊ばない', '上の案内' in page.inner_text('#avBubble'))
+        page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); d.logs = d.logs.filter(l => l.id !== 'calmtest'); localStorage.setItem('pawcare.v1', JSON.stringify(d)); }""")
+        # 10種類すべてのアバターが描ける
+        n_ok = page.evaluate("() => ['dog','cat','rabbit','hamster','bird','reptile','fish','squirrel','insect','other'].filter(s => /<svg[\\s\\S]*<\\/svg>$/.test(window.PAWCARE_AVATAR.svg({ species: s }))).length")
+        check(f'[{tag}] 10種類すべてのアバターを描ける', n_ok == 10, str(n_ok))
 
         check(f'[{tag}] v1.1 JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()

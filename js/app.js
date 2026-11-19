@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.10.0';
+  const APP_VERSION = '1.11.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -262,7 +262,7 @@
   /* ============================================================
    * ルーティング
    * ============================================================ */
-  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans', 'guide'];
+  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans', 'guide', 'avatar'];
   let currentView = 'home';
   function go(view) {
     if (location.hash !== '#/' + view) location.hash = '#/' + view;
@@ -288,9 +288,9 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     document.body.dataset.view = currentView;
-    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans', 'guide'].indexOf(currentView) >= 0 ? 'home' : currentView;
+    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans', 'guide', 'avatar'].indexOf(currentView) >= 0 ? 'home' : currentView;
     document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === navView));
-    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans, guide: renderGuide }[currentView];
+    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans, guide: renderGuide, avatar: renderAvatar }[currentView];
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
@@ -321,12 +321,21 @@
     const sp = speciesOf(pet.species);
     const g = gameStats();
     const L = levelOf(g.exp);
-    html += '<section class="card pet-hero slim"><span class="pet-avatar sm" aria-hidden="true">' + sp.emoji + '</span><div class="hero-text"><h1>' + esc(pet.name) + '</h1><p class="muted">' +
+    /* うちの子のステージ（v1.11）：動くアバター＋しゃべりかけ＋着せかえ・じまん */
+    const A = window.PAWCARE_AVATAR;
+    const bg = A.find(A.BG, A.settings(pet).bg);
+    const calm = !!homeDangerBanner(pet);
+    const said = avatarLines(pet, calm);
+    html += '<section class="stage' + (calm ? ' calm' : '') + '" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '">' +
+      '<div class="stage-row"><button type="button" class="av-btn" data-action="petTap" aria-label="' + esc(pet.name) + 'をなでる">' + A.svg(pet, { size: 132, label: pet.name + 'のアバター' }) + '</button>' +
+      '<div class="stage-side"><p class="bubble" id="avBubble" aria-live="polite">' + esc(said[0]) + '</p>' +
+      '<div class="stage-name"><h1>' + esc(pet.name) + '</h1><p class="muted">' +
       esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div>' +
       '<button type="button" class="lv-chip game-bar" data-nav="game" aria-label="レベル' + L.lv + '、がんばり記録を開く"><span class="lv-n">Lv.' + L.lv + '</span><span class="gb-track"><span style="width:' + Math.round(L.cur / L.need * 100) + '%"></span></span>' +
-      (g.streak.current ? '<span class="lv-s">🔥' + g.streak.current + '日</span>' : '<span class="lv-s">' + L.cur + '/' + L.need + '</span>') + '</button></section>';
+      (g.streak.current ? '<span class="lv-s">🔥' + g.streak.current + '日</span>' : '<span class="lv-s">' + L.cur + '/' + L.need + '</span>') + '</button></div></div>' +
+      '<div class="stage-actions"><button type="button" class="pill" data-nav="avatar">🎨 きせかえ</button><button type="button" class="pill" data-action="shareAvatar">📸 じまんする</button></div></section>';
     /* 3. いちばん使う「ワンタップで記録」を最初の画面に */
-    html += '<section class="card"><h2>ワンタップで記録</h2><div class="quick-grid">';
+    html += '<section class="card"><h2>ワンタップで記録</h2><div class="quick-grid channels">';
     (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c) => {
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
@@ -354,6 +363,29 @@
 
   /* 記録から「すぐ病院へ」の一覧に当てはまる様子が分かるときだけ、ホームの一番上に出す。
      回数などからアプリが危険度を決めることはしない（診断にあたるため） */
+  /* アバターのセリフ：記録の状況から決まった文を選ぶ（病気の判断はしない） */
+  let avLineIdx = 0;
+  function avatarLines(pet, calm) {
+    const quick = D.QUICK[pet.species] || D.QUICK.other;
+    const mine = db.logs.filter((l) => l.petId === pet.id);
+    const t = todayStr();
+    const today = { count: 0 };
+    const last = {};
+    mine.forEach((l) => {
+      if (l.datetime.slice(0, 10) === t) { today[l.category] = true; today.count++; }
+      if (!last[l.category] || l.datetime > last[l.category]) last[l.category] = l.datetime;
+    });
+    const daysSince = new Proxy({}, { get: (o, k) => last[k] ? (Date.now() - new Date(last[k]).getTime()) / 86400000 : (k === 'weight' && pet.weight ? 0 : 999) });
+    const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))))[0];
+    const prep = preparednessHtml(pet);
+    const m = /(\d+) \/ (\d+)/.exec(prep);
+    return window.PAWCARE_AVATAR.lines(pet, {
+      calm: calm, hour: new Date().getHours(), quick: quick, today: today, daysSince: daysSince,
+      streak: gameStats().streak.current, prepLeft: m ? m[2] - m[1] : 0,
+      due: due ? (due.title || reminderTypeOf(due.type).label) : ''
+    });
+  }
+
   function homeDangerBanner(pet) {
     const reasons = [];
     const ingest = logsSorted(db.logs.filter((l) => l.petId === pet.id && l.category === 'ingest' && l.datetime >= toLocalInput(new Date(Date.now() - 6 * 3600000))))[0];
@@ -2458,6 +2490,58 @@
       '<p class="plan-price">' + esc(p.price) + '</p><p class="muted small">' + esc(p.note) + '</p><ul class="plan-items">' + p.items.map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul></section>').join('') + '</div>' +
       '<p class="notice-small">プロ・ファミリーは準備中です（クラウドファンディングでの先行受付を予定しています）。価格は予定で、変わることがあります。<br>AIは病気の診断や治療の指示はしません。</p>';
   }
+  /* 着せかえ（v1.11）：選んだ値は一覧のidだけを保存する */
+  function renderAvatar() {
+    const A = window.PAWCARE_AVATAR;
+    const pet = activePet();
+    if (!pet) { location.hash = '#/home'; return ''; }
+    const s = A.settings(pet);
+    const bg = A.find(A.BG, s.bg);
+    const sw = (k, list, colors) => '<div class="swatches" role="radiogroup">' + list.map((o) =>
+      '<button type="button" role="radio" aria-checked="' + (s[k] === o.id) + '" class="sw' + (colors ? ' color' : '') + (s[k] === o.id ? ' on' : '') + '" data-action="avSet" data-k="' + k + '" data-v="' + o.id + '"' +
+      (colors ? ' style="--sw:' + o.hex + '" aria-label="' + esc(o.label) + '"><span></span>' : (o.a ? ' style="--sw:' + o.a + '">' : '>') + esc(o.label)) + '</button>').join('') + '</div>';
+    return '<h1 class="page-title">🎨 きせかえ</h1>' +
+      '<section class="stage small" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '"><div class="av-btn">' + A.svg(pet, { size: 150, label: pet.name + 'のアバター' }) + '</div><div class="stage-name"><h1>' + esc(pet.name) + '</h1></div></section>' +
+      '<section class="card avatar-edit">' +
+      '<h2>からだの色</h2>' + sw('color', A.COLORS, true) +
+      '<h2>もよう</h2>' + sw('pattern', A.PATTERNS) +
+      '<h2>おめめ</h2>' + sw('eyes', A.EYES) +
+      '<h2>アクセサリー</h2>' + sw('acc', A.ACCS) +
+      (s.acc !== 'none' && s.acc !== 'crown' ? '<h2>アクセサリーの色</h2>' + sw('accColor', A.COLORS, true) : '') +
+      '<h2>はいけい</h2>' + sw('bg', A.BG) + '</section>' +
+      '<button type="button" class="btn primary block" data-nav="home">できた！</button>' +
+      '<button type="button" class="btn ghost block" data-action="shareAvatar">📸 この子をじまんする</button>';
+  }
+
+  /* じまん画像：アバター・名前・レベル・連続記録だけを載せる（健康の情報は入れない） */
+  function avatarImageBlob(pet) {
+    const A = window.PAWCARE_AVATAR;
+    const bg = A.find(A.BG, A.settings(pet).bg);
+    const g = gameStats(), L = levelOf(g.exp);
+    const W = 1080, H = 1350;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const c = cv.getContext('2d');
+    const grd = c.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, bg.a); grd.addColorStop(1, bg.b);
+    c.fillStyle = grd; c.fillRect(0, 0, W, H);
+    const svgText = A.svg(pet, { static: true, size: 760 });
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        c.drawImage(img, (W - 760) / 2, 150, 760, 798);
+        const font = '"Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif';
+        c.textAlign = 'center'; c.fillStyle = '#3D3436';
+        c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
+        c.font = 'bold 50px ' + font; c.fillStyle = '#5b6b67';
+        c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
+        c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('PAWCARE', W / 2, 1270);
+        cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
+      };
+      img.onerror = () => reject(new Error('画像を作れませんでした'));
+      img.src = url;
+    });
+  }
+
   /* 飼い方のめやす（v1.10）：動物ごとの基本の環境＋品種ごとの由来・歴史 */
   function renderGuide() {
     const C = window.PAWCARE_CARE;
@@ -2632,6 +2716,39 @@
     newCare: () => openSheet('ワクチン・予防・健康診断の記録', careFormHtml({ date: todayStr(), type: 'vaccine' })),
     editCare: (el) => { const c = db.care.find((x) => x.id === el.dataset.id); if (c) openSheet('ワクチン・予防・健康診断の記録', careFormHtml(c)); },
     deleteCare: (el) => { if (!confirm('この記録を削除しますか？')) return; if (commit(() => { db.care = db.care.filter((c) => c.id !== el.dataset.id); })) { closeSheet(); rerender(); } },
+    petTap: (el) => {
+      const A = window.PAWCARE_AVATAR;
+      const pet = activePet(); if (!pet) return;
+      const b = document.getElementById('avBubble');
+      const st = el.closest('.stage');
+      if (st && st.classList.contains('calm')) return;
+      avLineIdx++;
+      const useful = avatarLines(pet, false);
+      if (b) b.textContent = avLineIdx % 2 ? A.TAP[Math.floor(Math.random() * A.TAP.length)] : useful[(avLineIdx / 2) % useful.length];
+      el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
+      const h = document.createElement('span'); h.className = 'heart'; h.textContent = '❤'; h.setAttribute('aria-hidden', 'true');
+      el.appendChild(h); setTimeout(() => h.remove(), 1000);
+    },
+    avSet: (el) => {
+      const pet = activePet(); if (!pet) return;
+      const A = window.PAWCARE_AVATAR;
+      const lists = { color: A.COLORS, accColor: A.COLORS, pattern: A.PATTERNS, eyes: A.EYES, acc: A.ACCS, bg: A.BG };
+      const k = el.dataset.k, v = el.dataset.v;
+      if (!lists[k] || !lists[k].some((o) => o.id === v)) return;
+      if (commit(() => { pet.avatar = Object.assign({}, pet.avatar, { [k]: v }); })) rerender();
+    },
+    shareAvatar: () => {
+      const pet = activePet(); if (!pet) return;
+      avatarImageBlob(pet).then((blob) => {
+        const file = new File([blob], 'pawcare-' + pet.name + '.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          return navigator.share({ files: [file], text: pet.name + 'の記録をPAWCAREでつけています #PAWCARE' }).catch(() => {});
+        }
+        const u = URL.createObjectURL(blob);
+        openSheet('じまん画像', '<img class="share-img" src="' + u + '" alt="' + esc(pet.name) + 'のじまん画像"><p class="small muted">画像を長押し（パソコンは右クリック）で保存して、SNSに投稿できます。健康の記録は画像に入りません。</p>' +
+          '<a class="btn primary block" download="pawcare-' + esc(pet.name) + '.png" href="' + u + '">画像を保存</a>');
+      }).catch((e) => toast(e.message));
+    },
     openPrep: () => { const p = activePet(); if (p) openSheet('もしもの準備', preparednessHtml(p).replace(/^<section class="card prep">/, '<section class="prep">')); },
     pickSpecies: (el) => {
       const form = el.closest('form');
