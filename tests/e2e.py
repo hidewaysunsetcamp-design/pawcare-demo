@@ -5,6 +5,7 @@
   python3 tests/e2e.py [URL]           # 既定: http://localhost:8765/
 """
 import json
+import re
 import os
 import sys
 from playwright.sync_api import sync_playwright
@@ -369,7 +370,7 @@ def run(device_name):
         page.click('.quick-btn[data-cat=vomit]')
         page.wait_for_timeout(150)
         qs = page.inner_text('.quick-btn[data-cat=vomit] .qs')
-        check(f'[{tag}] #2 ボタンに今日の回数と最後の時刻', qs.startswith('今日 ') and '分前' in qs, qs)
+        check(f'[{tag}] #2 ボタンに今日の回数と最後の時刻', re.match(r'^\d+回・\d+分前$', qs) is not None, qs)
         page.keyboard.press('Escape')
         # #3 誤食メモ
         page.click('.quick-btn[data-cat=ingest]')
@@ -512,19 +513,22 @@ def run(device_name):
         page.keyboard.press('Escape')
         page.evaluate('location.hash = "#/home"'); page.wait_for_timeout(200)
         gb = page.inner_text('.game-bar')
-        check(f'[{tag}] ホームにレベル・EXP・ペットの一言', 'Lv.' in gb and 'EXP' in gb and '「' in gb, gb)
+        check(f'[{tag}] ホームにレベル表示', 'Lv.' in gb, gb)
         page.click('.game-bar'); page.wait_for_timeout(200)
         gt = page.inner_text('#app')
         check(f'[{tag}] がんばり画面：勲章とEXPのもらい方', '勲章' in gt and 'EXPのもらい方' in gt and 'ペットの健康状態を評価するものではありません' in gt)
         exp1 = page.evaluate('(() => { const t = document.querySelector(".gh-lv").textContent; return t; })()')
         # 同じ日に記録を連打してもEXPが件数分は増えない
         before = page.evaluate('window.__PAWCARE__.getDb().logs.length')
+        def total_exp():
+            page.evaluate('location.hash = "#/game"'); page.wait_for_timeout(150)
+            return re.search(r'合計 (\d+) EXP', page.inner_text('#app')).group(1)
+        e_before = total_exp()
         page.evaluate('location.hash = "#/home"'); page.wait_for_timeout(150)
-        e_before = page.inner_text('.gb-exp')
         for _ in range(5):
             page.click('.quick-btn[data-cat=water]'); page.wait_for_timeout(60)
         page.keyboard.press('Escape'); page.wait_for_timeout(150)
-        e_after = page.inner_text('.gb-exp')
+        e_after = total_exp()
         check(f'[{tag}] 同じ日の連打ではEXPが増えすぎない', e_before == e_after, f'{e_before} -> {e_after}')
         # 新しい端末：最初の記録で勲章のお知らせ
         nctx = browser.new_context(**dev, locale='ja-JP', timezone_id='Asia/Tokyo')
@@ -545,6 +549,17 @@ def run(device_name):
         dp.goto(URL.split('#')[0] + '#/demo'); dp.wait_for_timeout(400)
         check(f'[{tag}] デモ用リンクを2回開いてもデータは増えない', dp.evaluate('JSON.parse(localStorage.getItem("pawcare.v1")).pets.length') == 2)
         dctx.close()
+
+        # ---------- ホームの緊急時：ふだんは出さず、誤食の記録があるときだけ ----------
+        hctx = browser.new_context(**dev, locale='ja-JP', timezone_id='Asia/Tokyo')
+        hp = hctx.new_page(); hp.on('pageerror', lambda e: errors.append('home:' + str(e)))
+        hp.goto(URL); hp.wait_for_selector('.bottom-nav')
+        hp.click('text=＋ ペットを登録する'); hp.fill('input[name=name]', 'ハナ'); hp.click('form[data-form=pet] button[type=submit]'); hp.wait_for_timeout(300)
+        check(f'[{tag}] ふだんのホームに大きな緊急時の案内は出ない', hp.locator('#app .home-danger, #app .emergency-card').count() == 0 and hp.locator('.header-emergency').is_visible())
+        hp.click('.quick-btn[data-cat=ingest]'); hp.wait_for_timeout(200)
+        hp.keyboard.press('Escape'); hp.wait_for_timeout(200)
+        check(f'[{tag}] 誤食の疑いを記録するとホームの一番上に電話の案内', hp.locator('#app > .home-danger').count() == 1 and '今すぐ電話' in hp.inner_text('.home-danger'))
+        hctx.close()
 
         check(f'[{tag}] JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
@@ -639,11 +654,12 @@ def run_v11(device_name):
         pet_id = get_db(page)['pets'][0]['id']
 
         # ---------- 予定：ホームカード・追加 ----------
-        home_card = page.locator('section.card:has(h2:has-text("⏰ 予定"))')
-        check(f'[{tag}] ホームに「⏰ 予定」カード', home_card.count() == 1 and '予定を追加' in home_card.inner_text())
+        check(f'[{tag}] ホームに予定のタイル', page.locator('.tile[data-nav=reminders]').count() == 1)
         now = datetime.strptime(page_now(page), '%Y-%m-%dT%H:%M')
         future = (now + timedelta(days=10)).strftime('%Y-%m-%dT10:00')
-        page.click('text=＋ 予定を追加')
+        page.click('.tile[data-nav=reminders]')
+        page.wait_for_function('() => document.body.dataset.view === "reminders"')
+        page.click('#app >> text=＋ 予定')
         page.wait_for_selector('form[data-form=reminder]')
         f = 'form[data-form=reminder] '
         page.select_option(f + 'select[name=petId]', pet_id)
@@ -656,7 +672,7 @@ def run_v11(device_name):
         page.wait_for_selector('#sheet', state='hidden')
         r = rem_by_title(page, '混合ワクチン')
         check(f'[{tag}] 予定を追加', r and r['type'] == 'vaccine' and r['dueAt'] == future and r['repeat'] == 'none' and r['memo'] == '8種' and r['done'] is False, str(r))
-        check(f'[{tag}] 追加した予定がホームに表示', '混合ワクチン' in home_card.inner_text())
+        check(f'[{tag}] 追加した予定が一覧に表示', '混合ワクチン' in page.inner_text('#app'))
         check(f'[{tag}] 追加後トーストからカレンダー登録できる', '📅 カレンダーに登録' in page.inner_text('#toast'))
         hide_toast(page)
 

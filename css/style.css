@@ -414,3 +414,26 @@ body[data-view=book] .storage-banner { display: none; }
 .medal.got { background: #fff8e6; border-color: #f0d58a; }
 .medal.got .m-icon { filter: none; opacity: 1; }
 .medal.got .m-name { color: var(--text); }
+
+/* v1.8 ホームの整理 */
+.em-strip { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px solid #f4c9c9; background: var(--danger-soft); color: #8f1f1f; border-radius: 12px; padding: 9px 12px; margin-bottom: 12px; font-size: .82rem; }
+.em-strip .chev { margin-left: auto; color: #c98b8b; }
+.pet-hero.slim { padding: 12px 14px; gap: 12px; flex-wrap: nowrap; }
+.pet-avatar.sm { width: 46px; height: 46px; font-size: 1.6rem; }
+.hero-text { min-width: 0; flex: 1; }
+.hero-text h1 { font-size: 1.15rem; }
+.hero-text p { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lv-chip { flex: 0 0 auto; display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 84px; border: 1px solid #f0d58a; background: #fff8e6; border-radius: 12px; padding: 6px 8px; text-align: center; }
+.lv-n { font-weight: 800; color: #1f7a68; font-size: .95rem; line-height: 1; }
+.lv-s { font-size: .68rem; color: #c2410c; font-weight: 700; line-height: 1; }
+.lv-chip .gb-track { height: 5px; }
+.quick-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 6px; }
+.quick-btn { min-height: 76px; font-size: .7rem; padding: 6px 1px; }
+.quick-btn .qs { font-size: .56rem; white-space: nowrap; }
+.notice-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; font-size: .88rem; box-shadow: var(--shadow); }
+.notice-row .chev { margin-left: auto; }
+.tiles-card { padding: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: #f4f7f6; border-radius: 14px; padding: 10px 2px; font-size: .7rem; font-weight: 700; line-height: 1.25; color: var(--text); min-height: 74px; }
+.tile span { font-size: 1.5rem; line-height: 1; }
+.sheet .prep { border: 0; box-shadow: none; padding: 0; }

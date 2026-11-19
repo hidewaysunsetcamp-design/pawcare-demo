@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.7.0';
+  const APP_VERSION = '1.8.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -307,9 +307,6 @@
   function renderHome() {
     const pet = activePet();
     let html = '';
-    html += '<button type="button" class="emergency-card" data-nav="emergency">' +
-      '<span class="em-ico" aria-hidden="true">🚨</span><span><strong>緊急時の案内</strong><small>呼吸が苦しい・けいれん・大量出血などはすぐ病院へ</small></span><span class="chev" aria-hidden="true">›</span></button>';
-
     if (!pet) {
       html += '<section class="card welcome"><h1>PAWCAREへようこそ</h1>' +
         '<p>毎日の健康記録をつけておくと、体調が悪いときに動物病院へ正確に伝えられます。まずはペットを登録しましょう。</p>' +
@@ -317,31 +314,55 @@
         '<button type="button" class="btn ghost block" data-action="loadSample">サンプルデータで試してみる</button></section>';
       return html + localNotice;
     }
-
+    /* 1. 緊急時は細い帯で常に見える位置に（ヘッダーの「緊急時」ボタンもある） */
     html += petChips(pet.id, 'selectPet');
+    html += homeDangerBanner(pet);
+    /* 2. ペット＋レベルを1行に */
     const sp = speciesOf(pet.species);
-    html += '<section class="card pet-hero"><span class="pet-avatar" aria-hidden="true">' + sp.emoji + '</span><div><h1>' + esc(pet.name) + '</h1><p class="muted">' +
-      esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div><button type="button" class="btn ghost small hero-card-btn" data-nav="card">🪪 もしもカード</button></section>';
-
-    html += gameBarHtml(pet);
-    html += preparednessHtml(pet);
-    html += '<section class="card"><h2>ワンタップで記録</h2><p class="muted small">押すと今の時刻で記録されます。時刻やメモはあとから修正できます。</p><div class="quick-grid">';
+    const g = gameStats();
+    const L = levelOf(g.exp);
+    html += '<section class="card pet-hero slim"><span class="pet-avatar sm" aria-hidden="true">' + sp.emoji + '</span><div class="hero-text"><h1>' + esc(pet.name) + '</h1><p class="muted">' +
+      esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div>' +
+      '<button type="button" class="lv-chip game-bar" data-nav="game" aria-label="レベル' + L.lv + '、がんばり記録を開く"><span class="lv-n">Lv.' + L.lv + '</span><span class="gb-track"><span style="width:' + Math.round(L.cur / L.need * 100) + '%"></span></span>' +
+      (g.streak.current ? '<span class="lv-s">🔥' + g.streak.current + '日</span>' : '<span class="lv-s">' + L.cur + '/' + L.need + '</span>') + '</button></section>';
+    /* 3. いちばん使う「ワンタップで記録」を最初の画面に */
+    html += '<section class="card"><h2>ワンタップで記録</h2><div class="quick-grid">';
     (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c) => {
-      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
+      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
-    html += '</div><button type="button" class="btn ghost block" data-action="newLog">日時・メモを入力して記録</button></section>';
-
-    html += homeRemindersHtml(pet);
-
-    const today = db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 10) === todayStr());
-    html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><span><button type="button" class="link" data-action="handoff">👪 引き継ぐ</button>　<button type="button" class="link" data-nav="logs">すべて見る</button></span></div>';
-    html += today.length ? '<ul class="log-list">' + logsSorted(today).map((l) => logItemHtml(l, false)).join('') + '</ul>' : '<p class="empty">今日の記録はまだありません。</p>';
+    html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
+    /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
+    const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))));
+    if (due.length) html += '<button type="button" class="notice-row" data-nav="reminders"><span aria-hidden="true">⏰</span><span><strong>' + esc(due[0].title || reminderTypeOf(due[0].type).label) + '</strong> ' + esc(fmtShort(due[0].dueAt)) + (due.length > 1 ? '　ほか' + (due.length - 1) + '件' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
+    const prep = preparednessHtml(pet);
+    if (prep) {
+      const m = /(\d+) \/ (\d+)/.exec(prep);
+      html += '<button type="button" class="notice-row" data-action="openPrep"><span aria-hidden="true">🧰</span><span><strong>もしもの準備</strong> ' + (m ? m[1] + ' / ' + m[2] + '　あと' + (m[2] - m[1]) + 'つ' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
+    }
+    /* 5. 今日の記録は新しい3件だけ */
+    const today = logsSorted(db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 10) === todayStr()));
+    html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><button type="button" class="link" data-nav="logs">すべて見る</button></div>';
+    html += today.length ? '<ul class="log-list">' + today.slice(0, 3).map((l) => logItemHtml(l, false)).join('') + '</ul>' + (today.length > 3 ? '<button type="button" class="link" data-nav="logs">ほか' + (today.length - 3) + '件</button>' : '') : '<p class="empty">今日の記録はまだありません。</p>';
     html += '</section>';
-
-    html += '<button type="button" class="card action-card" data-nav="nutrition"><span aria-hidden="true">🍚</span><span><strong>ごはんチェック</strong><small>カロリーの目安・おやつの割合・危険な食材を確認</small></span><span class="chev" aria-hidden="true">›</span></button>';
-    html += '<button type="button" class="card action-card" data-nav="interview"><span aria-hidden="true">🩺</span><span><strong>体調が気になるとき</strong><small>症状を順番に入力して、獣医師に伝える問診メモを作成</small></span><span class="chev" aria-hidden="true">›</span></button>';
-    html += '<button type="button" class="card action-card" data-nav="visits"><span aria-hidden="true">🏥</span><span><strong>受診の記録</strong><small>先生に言われたこと・処方・次回の予定を残す</small></span><span class="chev" aria-hidden="true">›</span></button>';
+    /* 6. そのほかの機能はアイコンのタイルにまとめる */
+    const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
+      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['game', '🎖', 'がんばり']];
+    html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
     return html + localNotice;
+  }
+
+  /* 記録から「すぐ病院へ」の一覧に当てはまる様子が分かるときだけ、ホームの一番上に出す。
+     回数などからアプリが危険度を決めることはしない（診断にあたるため） */
+  function homeDangerBanner(pet) {
+    const reasons = [];
+    const ingest = logsSorted(db.logs.filter((l) => l.petId === pet.id && l.category === 'ingest' && l.datetime >= toLocalInput(new Date(Date.now() - 6 * 3600000))))[0];
+    if (ingest) reasons.push('「誤食の疑い」を記録しています（' + agoText(ingest.datetime) + '）' + (ingest.ingest && ingest.ingest.what ? '：' + ingest.ingest.what : '') + '。');
+    const memo = db.memos.filter((m) => m.petId === pet.id && m.answers && m.createdAt >= toLocalInput(new Date(Date.now() - 24 * 3600000))).slice(-1)[0];
+    if (!memo && iv && iv.a.petId === pet.id && iv.step >= 2 && interviewDanger(iv.a)) reasons.push('入力中の問診で、「すぐ動物病院へ連絡すべき様子」の一覧と同じ項目を選んでいます。');
+    if (memo && interviewDanger(Object.assign({ symptoms: [] }, memo.answers))) reasons.push('問診で、「すぐ動物病院へ連絡すべき様子」の一覧と同じ項目を選んでいます（' + agoText(memo.createdAt) + '）。');
+    if (!reasons.length) return '';
+    return '<section class="alert danger home-danger" role="alert"><strong>まだ病院に連絡していなければ、今すぐ電話してください。</strong>' +
+      reasons.map((r) => '<p>' + esc(r) + '</p>').join('') + callButtonsHtml() + '</section>';
   }
 
   /* もしもの準備：元気なうちに済ませておくと、いざという時に迷わない */
@@ -1614,11 +1635,11 @@
   }
   function quickStatText(petId, cat) {
     const last = lastLog(petId, cat);
-    if (cat === 'weight') return last && last.value ? '最後 ' + last.value + 'kg（' + agoText(last.datetime) + '）' : '—';
+    if (cat === 'weight') return last && last.value ? last.value + 'kg・' + agoText(last.datetime) : '—';
     const weekAgo = toLocalInput(new Date(Date.now() - 7 * 86400000));
     if (!last || last.datetime < weekAgo) return '—';
     const today = db.logs.filter((l) => l.petId === petId && l.category === cat && l.datetime.slice(0, 10) === todayStr()).length;
-    return '今日 ' + today + '回・最後 ' + agoText(last.datetime);
+    return today + '回・' + agoText(last.datetime);
   }
   function updateQuickStats() {
     if (currentView !== 'home') return;
@@ -2540,6 +2561,7 @@
     newCare: () => openSheet('ワクチン・予防・健康診断の記録', careFormHtml({ date: todayStr(), type: 'vaccine' })),
     editCare: (el) => { const c = db.care.find((x) => x.id === el.dataset.id); if (c) openSheet('ワクチン・予防・健康診断の記録', careFormHtml(c)); },
     deleteCare: (el) => { if (!confirm('この記録を削除しますか？')) return; if (commit(() => { db.care = db.care.filter((c) => c.id !== el.dataset.id); })) { closeSheet(); rerender(); } },
+    openPrep: () => { const p = activePet(); if (p) openSheet('もしもの準備', preparednessHtml(p).replace(/^<section class="card prep">/, '<section class="prep">')); },
     pickSpecies: (el) => {
       const form = el.closest('form');
       const sel = form.querySelector('select[name=species]');
