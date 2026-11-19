@@ -1,4 +1,4 @@
-/* PAWCARE 定数データ（選択肢・カテゴリなど） */
+/* ことぽすと 定数データ（選択肢・カテゴリなど） */
 'use strict';
 
 window.PAWCARE_DATA = (function () {

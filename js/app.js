@@ -1,9 +1,9 @@
-/* PAWCARE アプリ本体（依存ライブラリなし・静的ホスティング用） */
+/* ことぽすと アプリ本体（依存ライブラリなし・静的ホスティング用） */
 'use strict';
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.15.0';
+  const APP_VERSION = '1.16.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -321,7 +321,7 @@
     const pet = activePet();
     let html = '';
     if (!pet) {
-      html += '<section class="card welcome"><h1>PAWCAREへようこそ</h1>' +
+      html += '<section class="card welcome"><h1>ことぽすとへようこそ</h1>' +
         '<p>毎日の健康記録をつけておくと、体調が悪いときに動物病院へ正確に伝えられます。まずはペットを登録しましょう。</p>' +
         '<button type="button" class="btn primary block" data-action="newPet">＋ ペットを登録する</button>' +
         '<button type="button" class="btn ghost block" data-action="loadSample">サンプルデータで試してみる</button></section>';
@@ -506,7 +506,7 @@
   }
   /* 毎日の「記録の時間」をカレンダーに登録（無料の通知のかわり） */
   function dailyReminderObj(time) {
-    return { id: 'pawcare-daily', petId: '', type: 'other', title: 'PAWCARE：今日のお世話を記録', dueAt: todayStr() + 'T' + (time || '20:00'), repeat: 'daily', memo: 'PAWCAREを開いて、今日のお世話（ごはん・お水など）を記録しましょう。' };
+    return { id: 'pawcare-daily', petId: '', type: 'other', title: 'ことぽすと：今日のお世話を記録', dueAt: todayStr() + 'T' + (time || '20:00'), repeat: 'daily', memo: 'ことぽすとを開いて、今日のお世話（ごはん・お水など）を記録しましょう。' };
   }
   function openDailyReminder() {
     const t = db.settings.dailyTime || '20:00';
@@ -514,7 +514,7 @@
       '<label>お知らせの時間<input type="time" id="dailyTime" value="' + esc(t) + '"></label>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="dailyIcs">' + (isIOS() ? 'iPhoneのカレンダーに登録' : 'カレンダーファイル（.ics）で登録') + '</button>' +
       '<button type="button" class="btn ghost block" data-action="dailyGoogle">Googleカレンダーに登録</button></div>' +
-      '<p class="muted small">PAWCAREにはまだ通知の仕組みがないため、カレンダーのお知らせを使います。やめたいときはカレンダーの予定を削除してください。</p>');
+      '<p class="muted small">ことぽすとにはまだ通知の仕組みがないため、カレンダーのお知らせを使います。やめたいときはカレンダーの予定を削除してください。</p>');
   }
 
   /* アバターのセリフ：記録の状況から決まった文を選ぶ（病気の判断はしない） */
@@ -1015,7 +1015,7 @@
   function buildMemo(a) {
     const p = getPet(a.petId);
     const L = [];
-    L.push('【PAWCARE 問診メモ】');
+    L.push('【ことぽすと 問診メモ】');
     L.push('作成：' + fmtDateTime(nowLocal()));
     L.push('※飼い主が入力した情報の整理です（診断ではありません）');
     L.push('');
@@ -1162,14 +1162,14 @@
       '<button type="button" class="btn ghost block" data-action="exportAllCsv"' + (db.logs.length ? '' : ' disabled') + '>すべての記録をCSVで書き出す</button></div></section>';
 
     html += '<section class="card"><h2>💎 プラン</h2><p class="small">いまのプラン：<strong>無料</strong></p><p class="muted small">プロ（月480円）・ファミリー（月780円）は準備中です。</p><button type="button" class="btn ghost block" data-nav="plans">プランを見る</button></section>';
-    html += '<section class="card"><h2>📤 外部に送られるデータ</h2><p class="muted small">PAWCAREにはサーバーがなく、通常の記録は端末の外に送られません。次の操作をしたときだけ、外部のサービスに情報が渡ります。</p><ul class="small">' +
+    html += '<section class="card"><h2>📤 外部に送られるデータ</h2><p class="muted small">ことぽすとにはサーバーがなく、通常の記録は端末の外に送られません。次の操作をしたときだけ、外部のサービスに情報が渡ります。</p><ul class="small">' +
       '<li><strong>病院への共有リンク</strong>：選んだ情報がリンク自体に入ります。LINE・メールで送ると、その送信履歴にも残ります。</li>' +
       '<li><strong>Googleカレンダーに追加</strong>：ペット名・予定名・メモがGoogleに送られます。</li>' +
       '<li><strong>近くの動物病院を探す</strong>：Googleマップで検索します（検索語は「動物病院」などの固定の言葉だけです）。</li>' +
       '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li></ul></section>';
     html += '<section class="card"><h2>📱 ホーム画面に追加</h2><p class="muted small">iPhone（Safari）：共有ボタン →「ホーム画面に追加」<br>Android（Chrome）：右上メニュー →「ホーム画面に追加」または「アプリをインストール」</p></section>';
 
-    html += '<section class="card"><h2>このアプリについて</h2><p class="small">PAWCARE デモ版 v' + APP_VERSION + '</p><p class="muted small">本アプリは健康記録と情報整理のためのツールです。病気の診断、治療方針の決定、緊急度の判定は行いません。体調に不安があるときは動物病院にご相談ください。</p>' +
+    html += '<section class="card"><h2>このアプリについて</h2><p class="small">ことぽすと デモ版 v' + APP_VERSION + '</p><p class="muted small">本アプリは健康記録と情報整理のためのツールです。病気の診断、治療方針の決定、緊急度の判定は行いません。体調に不安があるときは動物病院にご相談ください。</p>' +
       '<p class="muted small">ペット ' + db.pets.length + '頭／記録 ' + db.logs.length + '件／問診メモ ' + db.memos.length + '件／予定 ' + db.reminders.length + '件</p>' +
       '<button type="button" class="btn danger-ghost block" data-action="wipe">すべてのデータを削除</button></section>';
     return html;
@@ -1199,8 +1199,8 @@
     reader.onload = () => {
       let parsed;
       try { parsed = JSON.parse(reader.result); } catch (e) { toast('ファイルの形式が正しくありません'); return; }
-      if (parsed && parsed.app === 'PAWCARE' && parsed.kind === 'book') { mergeBook(parsed); return; }
-      const data = parsed && parsed.app === 'PAWCARE' ? parsed.data : parsed;
+      if (parsed && (parsed.app === 'PAWCARE' || parsed.app === 'ことぽすと') && parsed.kind === 'book') { mergeBook(parsed); return; }
+      const data = parsed && (parsed.app === 'PAWCARE' || parsed.app === 'ことぽすと') ? parsed.data : parsed; /* ファイル形式の名前は互換のため PAWCARE のまま */
       const next = normalizeDb(data);
       if (!next.pets.length && !next.logs.length && !next.reminders.length) { toast('復元できるデータが見つかりませんでした'); return; }
       if (!confirm('ペット' + next.pets.length + '頭・記録' + next.logs.length + '件を復元します。\n現在の端末内のデータは置き換えられます。よろしいですか？')) return;
@@ -1407,7 +1407,7 @@
   function reminderTexts(r) {
     const pet = getPet(r.petId);
     const t = reminderTypeOf(r.type);
-    return { title: (pet ? pet.name + '：' : '') + (r.title || t.label), details: (r.memo ? r.memo + '\n' : '') + 'PAWCAREで登録した予定です。' };
+    return { title: (pet ? pet.name + '：' : '') + (r.title || t.label), details: (r.memo ? r.memo + '\n' : '') + 'ことぽすとで登録した予定です。' };
   }
   function buildIcs(r) {
     const tx = reminderTexts(r);
@@ -1452,7 +1452,7 @@
 
   /* ============================================================
    * 病院への共有（リンク・QRコード）
-   * データはURLの「#」以降に入れるため、PAWCAREやGitHubのサーバーには送信されない
+   * データはURLの「#」以降に入れるため、ことぽすとやGitHubのサーバーには送信されない
    * ============================================================ */
   const QR_MAX = 1800;
   function b64urlEncode(bytes) {
@@ -1515,7 +1515,7 @@
       '<label class="check"><input type="checkbox" name="lifeFood" checked> <span>暮らし（室内・同居動物・最近の変化）と食べているもの</span></label>' +
       '<label class="check"><input type="checkbox" name="prevVisit" checked> <span>前回の受診（30日以内）を含める</span></label>' +
       '<label>リンクの有効期間（目安）<select name="expiry">' + optionsHtml(D.SHARE_EXPIRY, '3') + '</select></label>' +
-      '<div class="alert warn"><strong>共有する前にご確認ください</strong><ul><li>リンクを知っている人は誰でも内容を見られます。病院以外には送らないでください。</li><li>データはリンクの中に入っていて、PAWCAREのサーバーには保存されません。</li><li>リンク自体に情報が入っているため、LINE・メール等で送るとその送信履歴や相手の端末の閲覧履歴にも情報が残ります。</li><li>有効期限は画面表示の目安です。期限後もリンク内のデータは消えず、技術的には読み取れます。送ったリンクは取り消せません。</li></ul></div>' +
+      '<div class="alert warn"><strong>共有する前にご確認ください</strong><ul><li>リンクを知っている人は誰でも内容を見られます。病院以外には送らないでください。</li><li>データはリンクの中に入っていて、ことぽすとのサーバーには保存されません。</li><li>リンク自体に情報が入っているため、LINE・メール等で送るとその送信履歴や相手の端末の閲覧履歴にも情報が残ります。</li><li>有効期限は画面表示の目安です。期限後もリンク内のデータは消えず、技術的には読み取れます。送ったリンクは取り消せません。</li></ul></div>' +
       '<div class="form-actions"><button type="submit" class="btn primary block">リンクとQRコードを作る</button></div></form>');
   }
   async function createShare(form) {
@@ -1578,13 +1578,13 @@
     const s = sharedCache.data;
     if (!s) return '<div class="loading skeleton" aria-busy="true"><span class="sr-only">読み込み中…</span><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><b></b><b></b><b class="short"></b></div></div>';
     if (Date.now() > s.x) {
-      return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">飼い主様に、PAWCAREから新しい共有リンクを作成してもらってください。</p></section>';
+      return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">飼い主様に、ことぽすとから新しい共有リンクを作成してもらってください。</p></section>';
     }
     const p = s.p || {};
     const pet = { name: p.n, species: p.s, breed: p.b, birthday: p.bd, sex: p.sx, weight: p.w, memo: p.m };
     let html = '<section class="card shared-head"><p class="tag">受診用サマリー</p><h1>' + speciesOf(pet.species).emoji + ' ' + esc(pet.name) + '</h1>' +
       '<p class="muted small">作成：' + esc(fmtDateTime(s.c)) + '／表示期限：' + esc(fmtDateTime(toLocalInput(new Date(s.x)))) + '</p>' +
-      '<p class="disclaimer">飼い主が PAWCARE に入力した情報です。診断や医学的な判断を含むものではなく、内容の正確性は PAWCARE では確認していません。</p></section>';
+      '<p class="disclaimer">飼い主が ことぽすと に入力した情報です。診断や医学的な判断を含むものではなく、内容の正確性は ことぽすと では確認していません。</p></section>';
     html += keyPointsHtml(s, pet);
     html += '<section class="card"><h2>ペット情報</h2><dl class="pet-dl">' +
       '<dt>種類</dt><dd>' + esc(speciesOf(pet.species).label + (pet.breed ? '・' + pet.breed : '')) + '</dd>' +
@@ -2078,7 +2078,7 @@
     cv.width = W; cv.height = H;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#1f7a68'; ctx.fillRect(0, 0, W, 150);
-    ctx.fillStyle = '#ffffff'; ctx.font = font(34, true); ctx.fillText('もしもカード（PAWCARE）', pad, 62);
+    ctx.fillStyle = '#ffffff'; ctx.font = font(34, true); ctx.fillText('もしもカード（ことぽすと）', pad, 62);
     ctx.font = font(52, true); ctx.fillText(c.name, pad, 125);
     let y = 210;
     body.forEach(([label, ls]) => {
@@ -2108,7 +2108,7 @@
     const pet = activePet();
     if (!pet) return;
     openSheet('もしもカードを送る', '<form data-form="sendcard"><label>リンクの有効期間（目安）<select name="expiry"><option value="7">7日間</option><option value="30">30日間</option></select></label>' +
-      '<div class="alert warn"><ul><li>リンクを知っている人は誰でも内容を見られます。家族や預け先以外には送らないでください。</li><li>データはリンクの中に入っていて、PAWCAREのサーバーには保存されません。送ったリンクは取り消せません。</li></ul></div>' +
+      '<div class="alert warn"><ul><li>リンクを知っている人は誰でも内容を見られます。家族や預け先以外には送らないでください。</li><li>データはリンクの中に入っていて、ことぽすとのサーバーには保存されません。送ったリンクは取り消せません。</li></ul></div>' +
       '<div class="form-actions"><button type="submit" class="btn primary block">リンクを作る</button></div></form>');
   }
   async function createCardLink(form) {
@@ -2173,7 +2173,7 @@
     if (st.error) return linkErrorHtml(st.error);
     const c = st.data;
     if (Date.now() > c.x) return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">送ってくれた方に、新しいリンクを作ってもらってください。</p></section>';
-    return cardHtml(c, { created: c.c }) + '<div class="form-actions"><button type="button" class="btn ghost block" data-action="importCardPet">この端末のPAWCAREにプロフィールを取り込む</button></div>';
+    return cardHtml(c, { created: c.c }) + '<div class="form-actions"><button type="button" class="btn ghost block" data-action="importCardPet">この端末のことぽすとにプロフィールを取り込む</button></div>';
   }
   function importPetProfile(p) {
     if (getPet(p.id)) { toast(p.name + 'はすでに登録されています'); return; }
@@ -2239,7 +2239,7 @@
     const text = form.querySelector('[name=what]').value + ' ' + form.querySelector('[name=product]').value;
     const pet = activePet();
     const hits = toxicHitNames(text, pet ? pet.species : 'dog');
-    box.innerHTML = text.trim() ? '<div class="alert ' + (hits.length ? 'danger' : 'warn') + ' small">' + (hits.length ? 'PAWCAREの一覧では「' + esc(hits.join('、')) + '」に当たります。' : '') + '一覧にないものでも安全という意味ではありません。病院に連絡してください。</div>' : '';
+    box.innerHTML = text.trim() ? '<div class="alert ' + (hits.length ? 'danger' : 'warn') + ' small">' + (hits.length ? 'ことぽすとの一覧では「' + esc(hits.join('、')) + '」に当たります。' : '') + '一覧にないものでも安全という意味ではありません。病院に連絡してください。</div>' : '';
   }
   function saveIngestForm(form) {
     const f = new FormData(form);
@@ -2352,7 +2352,7 @@
       '<label class="check"><input type="checkbox" name="counts" checked> 記録の回数と最後の時刻</label>' +
       '<label class="check"><input type="checkbox" name="plans" checked> これから24時間の予定（服薬など）</label>' +
       '<label class="check"><input type="checkbox" name="card"> もしもカードのリンク</label>' +
-      '<label class="check"><input type="checkbox" name="importLink" checked> 記録を相手のPAWCAREに取り込むリンク</label>' +
+      '<label class="check"><input type="checkbox" name="importLink" checked> 記録を相手のことぽすとに取り込むリンク</label>' +
       '<label>伝えたいこと<textarea name="note" rows="3" maxlength="300" placeholder="例：夜もう一度吐いたら○○病院に電話して"></textarea></label>' +
       '<div class="alert warn small">自動では同期されません。相手が記録したものは、相手から引き継ぎを送ってもらってください。リンクを知っている人は誰でも読め、取り消せません。</div>' +
       '<div class="form-actions"><button type="submit" class="btn primary block">引き継ぎ文を作る</button></div></form>');
@@ -2410,7 +2410,7 @@
     let html = '<section class="card import-head"><p class="tag">家族からの引き継ぎ</p><h1>' + esc(h.from ? h.from + 'さんから：' : '') + esc(h.pet.name) + 'の記録 ' + h.logs.length + '件</h1><p class="muted small">' + esc(range) + '</p></section>';
     html += '<section class="card">' + groupedLogsHtml(h.logs.map((l) => Object.assign({}, l, { petId: '' })), false).replace(/data-action="editLog"/g, 'data-action="noop"') + '</section>';
     const same = getPet(h.pet.id);
-    html += '<section class="card"><h2>この端末のPAWCAREに取り込む</h2>' +
+    html += '<section class="card"><h2>この端末のことぽすとに取り込む</h2>' +
       (same ? '<p class="small">この端末の「' + esc(same.name) + '」に記録を追加します。</p><button type="button" class="btn primary block" data-action="doImport" data-target="' + esc(same.id) + '">取り込む</button>'
         : '<button type="button" class="btn primary block" data-action="doImport" data-target="new">新しいペットとして追加</button>' +
           (db.pets.length ? '<label>既存のペットに取り込む<select id="importTarget">' + optionsHtml(db.pets.map((p) => ({ id: p.id, label: p.name })), '') + '</select></label><button type="button" class="btn ghost block" data-action="doImport" data-target="select">選んだペットに取り込む</button>' : '')) +
@@ -2476,7 +2476,7 @@
       '<button type="button" class="btn ghost block" data-action="exportBook">手帳ファイルを書き出す（別の端末へ移すとき）</button></div></div>';
     const s = db.settings;
     const sp = speciesOf(pet.species);
-    html += '<section class="card book-cover"><p class="tag">PAWCARE 健康手帳</p><h1>' + sp.emoji + ' ' + esc(pet.name) + '</h1><dl class="kp-dl">' +
+    html += '<section class="card book-cover"><p class="tag">ことぽすと 健康手帳</p><h1>' + sp.emoji + ' ' + esc(pet.name) + '</h1><dl class="kp-dl">' +
       [['種類', sp.label + (pet.breed ? '・' + pet.breed : '')], ['生年月日', pet.birthday ? pet.birthday.replace(/-/g, '/') + '（' + ageText(pet.birthday) + '）' : ''], ['性別', sexLabel(pet.sex)],
         ['マイクロチップ', pet.microchip || ''], ['保険', [pet.insurer, pet.policyNo].filter(Boolean).join(' ／ ')], ['かかりつけ', [s.hospital.name, s.hospital.phone].filter(Boolean).join(' ')],
         ['飼い主', [s.owner.name, s.owner.phone].filter(Boolean).join(' ')]]
@@ -2554,7 +2554,7 @@
    * 飼い主の「行動」だけを数える。ペットの健康には点数をつけない。
    * EXPは保存せず、毎回いまのデータから計算する（記録を消せばEXPも減る）
    * ============================================================ */
-  const LEVEL_TITLES = [[1, 'はじめての記録係'], [3, '見守り上手'], [5, '記録マスター'], [8, '獣医さんの名パートナー'], [12, 'うちの子の名マネージャー'], [18, 'PAWCAREの伝説']];
+  const LEVEL_TITLES = [[1, 'はじめての記録係'], [3, '見守り上手'], [5, '記録マスター'], [8, '獣医さんの名パートナー'], [12, 'うちの子の名マネージャー'], [18, 'ことぽすとの伝説']];
   function dayList() {
     return Array.from(new Set(db.logs.map((l) => l.datetime.slice(0, 10)))).sort();
   }
@@ -2735,7 +2735,7 @@
         c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
         c.font = 'bold 50px ' + font; c.fillStyle = '#5b6b67';
         c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
-        c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('PAWCARE', W / 2, 1270);
+        c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('ことぽすと', W / 2, 1270);
         cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
       }).catch(() => reject(new Error('画像を作れませんでした')));
     });
@@ -2858,8 +2858,8 @@
     nextVisitReminder: (el) => { const v = db.visits.find((x) => x.id === el.dataset.id); if (v && v.nextDate) openReminderForm({ petId: v.petId, type: 'checkup', title: '次回の受診', dueAt: v.nextDate + 'T09:00', repeat: 'none', memo: v.reason ? '前回：' + v.reason : '', hint: '時刻は病院の予約に合わせて変更してください。' }); },
     handoff: () => openHandoff(),
     copyHandoff: () => { const t = $sheetBody.querySelector('.handoff-text'); if (t) copyText(t.textContent); },
-    shareHandoff: () => { const t = $sheetBody.querySelector('.handoff-text'); if (t) shareText('PAWCARE 引き継ぎ', t.textContent); },
-    shareLinkAs: (el) => { const i = $sheetBody.querySelector('.share-url'); if (i) shareText(el.dataset.title || 'PAWCARE', i.value); },
+    shareHandoff: () => { const t = $sheetBody.querySelector('.handoff-text'); if (t) shareText('ことぽすと 引き継ぎ', t.textContent); },
+    shareLinkAs: (el) => { const i = $sheetBody.querySelector('.share-url'); if (i) shareText(el.dataset.title || 'ことぽすと', i.value); },
     doImport: (el) => doImport(el.dataset.target),
     recordIngest: () => { const i = document.getElementById('toxicInput'); recordIngestFrom(i ? i.value.trim() : ''); },
     editLogBasic: (el) => { const l = db.logs.find((x) => x.id === el.dataset.id); if (l) openLogForm(Object.assign({}, l)); },
@@ -2904,7 +2904,7 @@
       rerender();
     },
     copyMemo: () => copyText(buildMemo(iv.a)),
-    shareMemo: () => shareText('PAWCARE 問診メモ', buildMemo(iv.a)),
+    shareMemo: () => shareText('ことぽすと 問診メモ', buildMemo(iv.a)),
     saveMemo: () => {
       const p = getPet(iv.a.petId);
       const memo = { id: uid(), petId: iv.a.petId, petName: p ? p.name : '', createdAt: nowLocal(), summary: iv.a.symptoms.join('、') || iv.a.symptomOther.slice(0, 30), text: buildMemo(iv.a), answers: Object.assign({}, iv.a, { symptoms: iv.a.symptoms.slice() }) };
@@ -2961,7 +2961,7 @@
       M.withLoading(el, avatarImageBlob(pet)).then((blob) => {
         const file = new File([blob], 'pawcare-' + pet.name + '.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          return navigator.share({ files: [file], text: pet.name + 'の記録をPAWCAREでつけています #PAWCARE' }).catch(() => {});
+          return navigator.share({ files: [file], text: pet.name + 'の記録をことぽすとでつけています #ことぽすと' }).catch(() => {});
         }
         const u = URL.createObjectURL(blob);
         openSheet('じまん画像', '<img class="share-img" src="' + u + '" alt="' + esc(pet.name) + 'のじまん画像"><p class="small muted">画像を長押し（パソコンは右クリック）で保存して、SNSに投稿できます。健康の記録は画像に入りません。</p>' +
@@ -2988,7 +2988,7 @@
     openShare: (el) => openShareSheet(el.dataset.id),
     shareInterview: () => openShareSheet(iv.a.petId, buildMemo(iv.a)),
     copyShareUrl: () => { const i = $sheetBody.querySelector('.share-url'); if (i) copyText(i.value); },
-    shareShareUrl: () => { const i = $sheetBody.querySelector('.share-url'); if (i) shareText('PAWCARE 受診用サマリー', i.value); },
+    shareShareUrl: () => { const i = $sheetBody.querySelector('.share-url'); if (i) shareText('ことぽすと 受診用サマリー', i.value); },
     printView: () => window.print(),
     deleteMemo: (el) => {
       if (!confirm('この問診メモを削除しますか？')) return;

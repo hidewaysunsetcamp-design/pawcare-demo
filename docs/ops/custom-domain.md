@@ -1,22 +1,22 @@
-# 独自アドレス（ドメイン）への引っ越し手順
+# 独自アドレス（ドメイン）への引っ越し手順（ことぽすと）
 
 状態：オーナーが取得待ち（2026-11-19 決定、ADR-019）
 
 ## 決めたこと
-- アドレス：**pawcare.pet**（取れなかったら pawcare-app.pet → mypawcare.pet の順）
+- アドレス：**kotopost.pet**（取れなかったら kotopost-app.pet → mykotopost.pet の順）
 - 取得先：お名前.com（日本語・コンビニ払い可）
 - 費用の目安（税込・2026年の公式表示）：取得 1,980円、2年目から毎年 3,428円。別に「サービス維持調整費」が上乗せされることがある
 - 公開の仕組みは今と同じ GitHub Pages（無料）。サーバー代はかからない
 
 ## 1. オーナーがすること（購入）
-1. お名前.com で `pawcare.pet` を検索して申し込む。
+1. お名前.com で `kotopost.pet` を検索して申し込む。
    - 「Whois情報公開代行」は**オン**（住所・氏名を公開しないため）
    - レンタルサーバーなどの追加サービスは**すべて外す**（不要）
    - 自動更新は**オン**（切れるとアプリが開けなくなる）
 2. 取れたら、Claude に「取れた」と伝える。
 
 ## 2. オーナーがすること（設定。Claudeが一緒に案内）
-1. **GitHubでドメインの持ち主を確認**（乗っ取り防止）：GitHub右上のアイコン →「Settings」→「Pages」→「Add a domain」に `pawcare.pet` → 表示された TXT の値を、お名前.com の DNS 設定に追加 →「Verify」。
+1. **GitHubでドメインの持ち主を確認**（乗っ取り防止）：GitHub右上のアイコン →「Settings」→「Pages」→「Add a domain」に `kotopost.pet` → 表示された TXT の値を、お名前.com の DNS 設定に追加 →「Verify」。
 2. **お名前.com の DNS 設定**（お名前.com Navi →「DNS設定」）に次を追加：
 
 | 種類 | ホスト名 | 値 |
@@ -27,10 +27,10 @@
 | A | （空欄） | 185.199.111.153 |
 | CNAME | www | hidewaysunsetcamp-design.github.io |
 
-3. リポジトリの「Settings」→「Pages」→「Custom domain」に `pawcare.pet` を入れて保存 → 数分〜最大48時間後に「Enforce HTTPS」にチェック。
+3. リポジトリの「Settings」→「Pages」→「Custom domain」に `kotopost.pet` を入れて保存 → 数分〜最大48時間後に「Enforce HTTPS」にチェック。
 
 ## 3. Claude がすること
-- リポジトリに `CNAME` ファイル（中身 `pawcare.pet`）を追加。
+- リポジトリに `CNAME` ファイル（中身 `kotopost.pet`）を追加。
 - アプリ内の紹介文・じまん画像・README・広報資料のアドレスを新しいものに差し替え。
 - 新しいアドレスで全画面の動作確認（パソコンのClaude Codeに T01 と同じ確認を依頼）。
 

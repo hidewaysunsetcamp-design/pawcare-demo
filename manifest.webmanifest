@@ -1,6 +1,6 @@
 {
-  "name": "PAWCARE ペットの健康記録",
-  "short_name": "PAWCARE",
+  "name": "ことぽすと｜うちの子の“いつも”を、先生へ",
+  "short_name": "ことぽすと",
   "description": "ペットの毎日の健康記録と、緊急時に動物病院へ伝える問診メモ",
   "lang": "ja",
   "start_url": "./",

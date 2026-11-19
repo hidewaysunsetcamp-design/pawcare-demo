@@ -52,7 +52,7 @@ def run(device_name):
         page.goto(URL)
         wait_rendered(page)
         body = page.inner_text('body')
-        check(f'[{tag}] アプリ画面が表示される（コード文字列ではない）', 'PAWCARE' in body and '<!DOCTYPE' not in body and '!doctype' not in body.lower())
+        check(f'[{tag}] アプリ画面が表示される（コード文字列ではない）', 'ことぽすと' in body and '<!DOCTYPE' not in body and '!doctype' not in body.lower())
         check(f'[{tag}] 初回はようこそ画面', 'ようこそ' in body)
         page.screenshot(path=f'{SHOT}/{tag}-01-welcome.png', full_page=True)
 
@@ -483,7 +483,7 @@ def run(device_name):
         page.evaluate('location.hash = "#/book"')
         page.wait_for_timeout(200)
         bt = page.inner_text('#app')
-        check(f'[{tag}] 健康手帳：表紙・もしもカード・受診・体重', all(x in bt for x in ['PAWCARE 健康手帳', 'もしもカード', '受診の記録', '体重の推移', 'ワクチン・予防・健康診断']), bt[:200])
+        check(f'[{tag}] 健康手帳：表紙・もしもカード・受診・体重', all(x in bt for x in ['ことぽすと 健康手帳', 'もしもカード', '受診の記録', '体重の推移', 'ワクチン・予防・健康診断']), bt[:200])
         page.click('[data-action=newCare]')
         page.fill('form[data-form=care] input[name=title]', '混合ワクチン（過去分）')
         page.fill('form[data-form=care] input[name=date]', '2025-11-01')
