@@ -32,3 +32,13 @@ python3 tests/e2e.py               # 画面のテスト（Playwright＋Chrome）
 - **main に直接 push しない。** `feat/〜` などのブランチを作り、プルリクエストを出す。本文に「何を変えたか」「どう確かめたか」「オーナーに決めてほしいこと」を日本語で書く。
 - 1つのタスクが終わったら `docs/tasks/` のそのファイルの先頭に「状態：完了（PR番号）」と書く。
 - 仕事の一覧は `docs/tasks/README.md`。
+
+## エージェントチーム（.claude/agents/）
+| 担当 | ファイル | 頼むこと |
+|---|---|---|
+| 制作（UI/UX・音・動き・絵） | production-director | 画面・動き・効果音・振動の設計とレビュー（docs/design/） |
+| 開発（実装・調整値・チケット） | dev-engineer | 実装、データと調整値の分離、テスト、チケット整理 |
+| 広報 | pr-planner | 紹介ページ・SNS・動画・クラファン・実演の構成と文案（docs/pr/） |
+| 分析 | analyst | 目的に合っているかの評価、トレードオフ、改善の優先度（docs/review/） |
+| コンセプト | concept-planner | 事業・製品の方向づけ（docs/concept/） |
+| 市場・競合 | market-analyst | 類似サービスの調査（docs/research/） |
