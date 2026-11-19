@@ -96,8 +96,8 @@
     var has = function (c) { return ctx.quick.indexOf(c) >= 0; };
     if (ctx.due) add(ctx.due + 'の予定、わすれないでね。');
     if (ctx.daily && ctx.daily.goal.length) {
-      if (ctx.daily.perfect) add('今日のおせわ、パーフェクト！ ありがとう！');
-      else if (ctx.daily.done.length && ctx.daily.left <= 2) add('今日のおせわ、あと' + ctx.daily.left + 'つ！ がんばろ〜');
+      if (ctx.daily.perfect) add('今日のお世話、パーフェクト！ ありがとう！');
+      else if (ctx.daily.done.length && ctx.daily.left <= 2) add('今日のお世話、あと' + ctx.daily.left + 'つ！ がんばろ〜');
     }
     if (has('food') && !ctx.today.food) add(h < 11 ? 'おはよう！ 朝ごはん、記録してくれる？' : '今日のごはん、記録してくれる？');
     if (has('temp') && !ctx.today.temp && (pet.species === 'reptile' || pet.species === 'insect')) add('今日のおへやの温度、はかってみて？');

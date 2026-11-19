@@ -42,3 +42,6 @@ python3 tests/e2e.py               # 画面のテスト（Playwright＋Chrome）
 | 分析 | analyst | 目的に合っているかの評価、トレードオフ、改善の優先度（docs/review/） |
 | コンセプト | concept-planner | 事業・製品の方向づけ（docs/concept/） |
 | 市場・競合 | market-analyst | 類似サービスの調査（docs/research/） |
+
+## 仕事の姿勢（全員共通）
+`docs/team/work-attitude.md` に従う。とくに：相手（飼い主・ペット・獣医師）ベースで不親切をなくす／提案は一択で責任を持って出す／仕様変更は早く共有して即決する／まず手を動かす。

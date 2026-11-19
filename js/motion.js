@@ -50,9 +50,10 @@
   function confetti() {
     if (reduced()) return;
     var colors = ['#34a8d8', '#f2a65a', '#9bd38a', '#f5b5c8', '#f7d95c', '#b9a3e3'];
+    document.querySelectorAll('.confetti').forEach(function (x) { x.remove(); });
     var box = document.createElement('div');
     box.className = 'confetti'; box.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < 46; i++) {
+    for (var i = 0; i < 32; i++) {
       var p = document.createElement('i');
       p.style.left = (Math.random() * 100) + 'vw';
       p.style.background = colors[i % colors.length];
@@ -159,29 +160,42 @@
     if (ac.state === 'suspended') ac.resume();
     return ac;
   }
+  /* 音の出口を1本にまとめ、重なっても音割れしないように軽く抑える */
+  var master = null;
+  function out(c) {
+    if (!master) { var comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6; master = c.createGain(); master.gain.value = 0.9; master.connect(comp); comp.connect(c.destination); }
+    return master;
+  }
   function tone(c, t, freq, dur, type, vol, slideTo) {
     var o = c.createOscillator(), g = c.createGain();
     o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.12, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+    o.connect(g); g.connect(out(c)); o.start(t); o.stop(t + dur + 0.02);
   }
   var SOUNDS = {
-    tick: function (c, t) { tone(c, t, 880, 0.09, 'sine', 0.10, 1320); },                       /* 記録：ぽっ */
-    combo: function (c, t) { tone(c, t, 988, 0.08, 'sine', 0.10); tone(c, t + 0.07, 1319, 0.12, 'sine', 0.10); },  /* コンボ：ぴぽっ */
-    stamp: function (c, t) { tone(c, t, 180, 0.12, 'triangle', 0.25, 90); [523, 659, 784, 1047].forEach(function (f, i) { tone(c, t + 0.12 + i * 0.08, f, 0.22, 'sine', 0.09); }); }, /* パーフェクト：どんっ＋ドミソド */
+    tick: function (c, t, v) { var k = v || 1; tone(c, t, 2350 * k, 0.012, 'triangle', 0.05); tone(c, t + 0.004, 1175 * k, 0.07, 'sine', 0.08, 1480 * k); }, /* 記録：コッ＋ぽっ（毎回±1.5%ゆらす） */
+    combo: function (c, t, v, n) { var k = Math.pow(2, Math.min(8, 2 * ((n || 2) - 2)) / 12) * (v || 1); tone(c, t, 988 * k, 0.07, 'sine', 0.09); tone(c, t + 0.06, 1319 * k, 0.11, 'sine', 0.09); },  /* コンボ：続くほど全音ずつ上がる（上限+8半音） */
+    stamp: function (c, t) { noise(c, t, 0.03, 1200, 0.16); tone(c, t, 392, 0.11, 'triangle', 0.18, 196); [1047, 1319, 1568].forEach(function (f, i) { tone(c, t + 0.12 + i * 0.07, f, 0.16, 'sine', 0.08); }); tone(c, t + 0.33, 2093, 0.38, 'sine', 0.07); }, /* パーフェクト：ポンッ（押す）＋ドミソ→高いド */
     tap: function (c, t) { tone(c, t, 660, 0.06, 'sine', 0.06, 990); },                          /* なでる：ぷっ */
     error: function (c, t) { tone(c, t, 300, 0.1, 'triangle', 0.1); tone(c, t + 0.11, 220, 0.14, 'triangle', 0.1); }
   };
   function silence() { try { if (ac && ac.state === 'running') ac.suspend(); } catch (x) { /* 何もしない */ } }
-  function sound(name, on) {
+  function noise(c, t, dur, freq, vol) {
+    var len = Math.max(1, Math.floor(c.sampleRate * dur)), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    var s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
+    s.connect(f); f.connect(g); g.connect(out(c)); s.start(t);
+  }
+  function sound(name, on, n) {
     if (on === false || !SOUNDS[name]) return;
-    try { var c = ctx(); if (c) SOUNDS[name](c, c.currentTime + 0.01); } catch (x) { /* 鳴らせない端末 */ }
+    try { var c = ctx(); if (c) SOUNDS[name](c, c.currentTime + 0.01, 1 + (Math.random() - 0.5) * 0.03, n); } catch (x) { /* 鳴らせない端末 */ }
   }
 
   /* 10. ハプティクス：Androidは振動、iPhoneはSafariのスイッチ部品の「コツッ」を使う（iOS 18以降）。
    * どちらも非対応なら何もしない */
-  var PAT = { light: 12, success: [14, 50, 14], combo: [10, 40, 10, 40, 10], stamp: [30, 60, 30, 60, 120], error: [20, 40, 20] };
+  var PAT = { light: 10, success: 20, combo: [14, 60, 22], stamp: [40, 80, 12, 70, 12, 70, 12, 70, 30], error: [30, 70, 30], undo: 10 };
   var iosSwitch = null;
   function iosTick() {
     if (!iosSwitch) {

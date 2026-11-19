@@ -73,13 +73,40 @@ window.PAWCARE_DATA = (function () {
     insect: ['food', 'shed', 'temp', 'tank', 'other'],
     other: ['food', 'water', 'stool', 'urine', 'vomit', 'medicine', 'weight', 'ingest', 'walk', 'other']
   };
-  /* 今日のおせわ（v1.13）：毎日つけたい記録。全部できたら「パーフェクト」。
+  /* 今日のお世話（v1.13）：毎日つけたい記録。全部できたら「パーフェクト」。
    * 爬虫類・昆虫は毎日食べない種が多いので、ごはんを目標に入れない */
   var DAILY = {
     dog: ['food', 'water', 'walk', 'stool', 'urine'], cat: ['food', 'water', 'urine', 'stool'],
     rabbit: ['food', 'water', 'stool'], hamster: ['food', 'water'], bird: ['food', 'water', 'stool'],
     reptile: ['temp', 'water'], fish: ['food', 'temp'], squirrel: ['food', 'water'], insect: ['temp'], other: ['food', 'water']
   };
+  /* 緊急時の画面（v1.15）：外平先生のご意見（2026-11-19 LINE）を受けた下書き。獣医師の確認が終わるまで reviewed: false。
+   * 病名は「〜のおそれ」として添えるだけで、当てはまるかどうかの判定はしない。どれも「すぐ電話」に必ずつなぐ */
+  var WATCH = [
+    { id: 'gdv', species: ['dog'], icon: '🐕', title: 'お腹がふくれて、吐こうとしても吐けない', name: '胃拡張・胃捻転', who: '大型犬・胸の深い犬に多い（小型犬でも起こることがあります）',
+      signs: ['お腹（とくに左側）が急にふくれて張っている', '吐こうとしても何も出ない', 'よだれが多い・落ち着かず歩き回る', '歯ぐきが白っぽい・ぐったりしている'],
+      action: '数時間で命に関わることがあります。夜中でも、すぐ電話して向かってください。',
+      before: ['食べ物や水は与えない', 'お腹を押したり、さすったりしない', '電話で「お腹が張って、吐こうとしても吐けない」と伝える'] },
+    { id: 'pyometra', species: ['dog', 'cat'], femaleIntact: true, icon: '🐩', title: '避妊していない女の子が、水をたくさん飲む・元気がない', name: '子宮蓄膿症', who: '避妊手術をしていない女の子。中高齢に多い（若くても起こります）',
+      signs: ['水をたくさん飲み、おしっこが増えた', '陰部から膿や血のようなおりもの（出ないこともあります）', '元気・食欲がない、吐く', '発情（生理）が終わってから2〜3か月ほどの時期'],
+      action: 'その日のうちに動物病院へ。ぐったりしているときは、すぐに電話してください。',
+      before: ['最後の発情（生理）がいつだったか伝えられるようにする', 'おりものがあれば、スマホで写真を撮っておく'] },
+    { id: 'fate', species: ['cat'], icon: '🐈', title: '急に後ろ足が動かなくなり、痛がって鳴く', name: '動脈血栓塞栓症（血栓症）', who: '猫。心臓の病気がある子に多い',
+      signs: ['急に後ろ足を引きずる・立てない', '強い痛みで鳴く・叫ぶ', '後ろ足の肉球が冷たく、白っぽい・紫っぽい', '呼吸が荒い'],
+      action: 'すぐに電話して、向かってください。',
+      before: ['足を引っぱらず、そっとキャリーに入れる', '毛布やタオルで包み、体を冷やさない', '呼吸が苦しそうなら、それも電話で伝える'] },
+    { id: 'blocked', species: ['cat'], icon: '🚽', title: 'トイレに何度も行くのに、おしっこが出ない', name: '尿閉（おしっこの通り道がつまる）', who: '猫。とくに男の子に多い',
+      signs: ['トイレで力むのに、出ない・少ししか出ない', '痛そうに鳴く・陰部をしきりになめる', '吐く・食べない・ぐったりしている'],
+      action: '出ない状態が続くと命に関わります。様子を見ずに、すぐ動物病院へ。',
+      before: ['お腹を押さない', '最後におしっこが出たのはいつか伝える', 'トイレの砂の固まりの数や色を、写真に撮っておく'] }
+  ];
+  var FIRST_AID = [
+    { id: 'common', icon: '🚗', title: 'どの場合も（病院に着くまで）',
+      steps: ['向かう前に電話して、受け入れてもらえるか確かめる', 'キャリーやタオルで体を支え、なるべく動かさない', '食べた物のパッケージ・吐いた物・便は写真を撮り、持っていけるものは持っていく', '人の薬を飲ませたり、自分で吐かせたりしない', 'この画面の「電話で読み上げるメモ」を使う'] },
+    { id: 'heat', icon: '🥵', title: '熱中症かも（暑い所で、ハァハァが止まらない・ぐったり）',
+      steps: ['すぐ涼しい場所（エアコンの効いた部屋・日かげ）へ移す', '首・わきの下・内もも・お腹を常温〜少し冷たい水でぬらし、うちわや扇風機で風を当てる（氷水で急に冷やさない）', '自分で飲めるなら少しずつ水を。意識がはっきりしないときは無理に飲ませない', '冷やしながら電話し、車はエアコンを効かせて向かう', '元気になったように見えても、必ず受診する'] }
+  ];
+  var EMERGENCY_REVIEWED = false;
   /* 危険な兆候の一覧・ごはんチェックの基準は犬・猫向け。ほかの動物には一般的な案内だけを出す */
   var DOG_CAT = ['dog', 'cat'];
 
@@ -102,16 +129,18 @@ window.PAWCARE_DATA = (function () {
     ],
     /* 人の食べ物で特に危険とされるもの（キーワード：表示名） */
     toxic: [
-      { k: ['玉ねぎ', 'たまねぎ', 'タマネギ', 'ねぎ', 'ネギ', 'にら', 'ニラ', 'にんにく', 'ニンニク', 'らっきょう'], name: 'ネギ類（玉ねぎ・長ねぎ・にら・にんにくなど）', both: true },
-      { k: ['ぶどう', 'ブドウ', '葡萄', 'レーズン', '干しぶどう'], name: 'ぶどう・レーズン', both: true },
-      { k: ['チョコ', 'ココア', 'カカオ'], name: 'チョコレート・ココア', both: true },
-      { k: ['キシリトール', 'ガム'], name: 'キシリトール（ガム・菓子など）', both: true },
-      { k: ['マカダミア'], name: 'マカダミアナッツ', dog: true },
-      { k: ['アルコール', 'お酒', 'ビール', 'ワイン'], name: 'アルコール', both: true },
-      { k: ['コーヒー', 'カフェイン', '紅茶', '緑茶', 'エナジードリンク'], name: 'カフェイン（コーヒー・お茶など）', both: true },
-      { k: ['骨', 'ほね'], name: '加熱した骨（割れて刺さるおそれ）', both: true },
-      { k: ['ユリ', 'ゆり', '百合'], name: 'ユリ（花・葉・花粉・花瓶の水も）', cat: true },
-      { k: ['人の薬', '鎮痛剤', '風邪薬', 'イブプロフェン', 'アセトアミノフェン'], name: '人の薬', both: true }
+      { icon: '🧅', k: ['玉ねぎ', 'たまねぎ', 'タマネギ', 'ねぎ', 'ネギ', 'にら', 'ニラ', 'にんにく', 'ニンニク', 'らっきょう'], name: 'ネギ類（玉ねぎ・長ねぎ・にら・にんにくなど）', both: true },
+      { icon: '🍇', k: ['ぶどう', 'ブドウ', '葡萄', 'レーズン', '干しぶどう'], name: 'ぶどう・レーズン', both: true },
+      { icon: '🍫', k: ['チョコ', 'ココア', 'カカオ'], name: 'チョコレート・ココア', both: true },
+      { icon: '🍬', k: ['キシリトール', 'ガム'], name: 'キシリトール（ガム・菓子など）', both: true },
+      { icon: '🌰', k: ['マカダミア'], name: 'マカダミアナッツ', dog: true },
+      { icon: '🍺', k: ['アルコール', 'お酒', 'ビール', 'ワイン'], name: 'アルコール', both: true },
+      { icon: '☕', k: ['コーヒー', 'カフェイン', '紅茶', '緑茶', 'エナジードリンク'], name: 'カフェイン（コーヒー・お茶など）', both: true },
+      { icon: '🍗', k: ['骨', 'ほね'], name: '加熱した骨（割れて刺さるおそれ）', both: true },
+      { icon: '💐', k: ['ユリ', 'ゆり', '百合'], name: 'ユリ（花・葉・花粉・花瓶の水も）', cat: true },
+      { icon: '💊', k: ['人の薬', '鎮痛剤', '風邪薬', 'イブプロフェン', 'アセトアミノフェン'], name: '人の薬', both: true },
+      { icon: '🧊', k: ['保冷剤'], name: '保冷剤（中身によっては危険）', both: true },
+      { icon: '🚬', k: ['タバコ', 'たばこ', '煙草', '吸い殻'], name: 'タバコ・吸い殻', both: true }
     ]
   };
 
@@ -208,7 +237,7 @@ window.PAWCARE_DATA = (function () {
   var ADS = [];
 
   return {
-    ADS: ADS, DAILY: DAILY, DOG_CAT: DOG_CAT, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
+    ADS: ADS, DAILY: DAILY, DOG_CAT: DOG_CAT, WATCH: WATCH, FIRST_AID: FIRST_AID, EMERGENCY_REVIEWED: EMERGENCY_REVIEWED, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,
