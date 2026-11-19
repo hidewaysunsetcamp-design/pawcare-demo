@@ -257,7 +257,7 @@ def run(device_name):
         page.evaluate('location.hash = "#/pets"')
         page.wait_for_timeout(150)
         page.click('text=＋ 追加')
-        check(f'[{tag}] 種類は犬・猫を大きなボタンで選べる', page.locator('.species-btn').count() == 2)
+        check(f'[{tag}] 種類は10種類をボタンで選べる', page.locator('.species-btn').count() == 10)
         page.click('.species-btn[data-value=cat]')
         opts = page.eval_on_selector_all('select[name=breedSelect] option', 'o => o.map(x => x.value)')
         check(f'[{tag}] 猫ボタンで品種リストが猫に切り替わる', 'スコティッシュ・フォールド' in opts and page.input_value('select[name=species]') == 'cat')
@@ -940,6 +940,47 @@ def run_v11(device_name):
         vctx, vp = open_viewer(browser, dev, url2, errors, 'viewer-memo')
         check(f'[{tag}] 共有ページに問診メモ', '共有テスト用メモQ7' in vp.inner_text('#app pre.memo') and '下痢' in vp.inner_text('#app pre.memo'))
         vctx.close()
+
+        # ---------- v1.10 いろいろな動物・飼い方のめやす ----------
+        page.goto(URL + '#/pets'); page.reload(); wait_rendered(page)
+        page.click('text=＋ 追加')
+        page.click('.species-btn[data-value=reptile]')
+        opts = page.eval_on_selector_all('select[name=breedSelect] option', 'o => o.map(x => x.value)')
+        check(f'[{tag}] 爬虫類ボタンで爬虫類の品種リスト', 'ヒョウモントカゲモドキ（レオパ）' in opts, str(opts[:4]))
+        page.select_option('select[name=breedSelect]', 'ヒョウモントカゲモドキ（レオパ）')
+        page.fill('input[name=name]', 'レオ')
+        page.fill('input[name=weight]', '0.065')
+        page.click('form[data-form=pet] button[type=submit]')
+        page.wait_for_timeout(200)
+        leo = [x for x in get_db(page)['pets'] if x['name'] == 'レオ'][0]
+        check(f'[{tag}] 小さな体重（0.065kg）を保存できる', leo['species'] == 'reptile' and str(leo.get('weight')) in ('0.065',), str(leo.get('weight')))
+        page.evaluate('id => { const d = JSON.parse(localStorage.getItem("pawcare.v1")); d.settings.activePetId = id; localStorage.setItem("pawcare.v1", JSON.stringify(d)); }', leo['id'])
+        page.goto(URL + '#/home'); wait_rendered(page)
+        cats = page.eval_on_selector_all('.quick-btn', 'b => b.map(x => x.dataset.cat)')
+        check(f'[{tag}] 爬虫類のワンタップに脱皮・温度', 'shed' in cats and 'temp' in cats and 'walk' not in cats, str(cats))
+        check(f'[{tag}] ホームに飼い方タイル', page.locator('.tile[data-nav=guide]').count() == 1)
+        page.click('.tile[data-nav=guide]')
+        page.wait_for_function('() => document.body.dataset.view === "guide"')
+        g = page.inner_text('#app')
+        check(f'[{tag}] 飼い方：ペットの品種を最初に表示', 'ヒョウモントカゲモドキ（レオパ）について' in g and 'ホットスポット30〜32℃' in g and 'パキスタン' in g)
+        check(f'[{tag}] 飼い方：温度・湿度・ごはん・寝床・習性・歴史', all(k in g for k in ['温度', '湿度', 'ごはん', '寝床・住まい', '習性', '爬虫類と人の歴史']))
+        check(f'[{tag}] 飼い方：監修準備中と病院への相談の注記', '監修を準備中' in g and '動物病院に相談' in g)
+        page.select_option('select[data-guide=species]', 'cat'); page.wait_for_timeout(150)
+        page.select_option('select[data-guide=breed]', 'スコティッシュ・フォールド'); page.wait_for_timeout(150)
+        g = page.inner_text('#app')
+        check(f'[{tag}] 飼い方：猫の品種に切り替え', '1961年' in g and 'リビアヤマネコ' in g)
+        check(f'[{tag}] 飼い方：画面からはみ出さない', no_overflow(page) <= 0)
+        # すべての動物・品種が表示できる（データ欠けの検出）
+        bad = page.evaluate("""() => { const C = window.PAWCARE_CARE, D = window.PAWCARE_DATA, out = [];
+          D.SPECIES.forEach(s => { const base = C.SPECIES[s.id]; if (!base) out.push('species:' + s.id);
+            (D.BREEDS[s.id] || []).forEach(b => { if (['ミックス','不明','その他'].includes(b)) return;
+              const x = (C.BREEDS[s.id] || {})[b]; if (!x || !x.origin || !x.history) out.push(s.id + ':' + b); }); });
+          return out; }""")
+        check(f'[{tag}] 全品種に由来と歴史がある', not bad, str(bad[:8]))
+        page.evaluate('location.hash = "#/emergency"'); page.wait_for_timeout(150)
+        e = page.inner_text('#app')
+        check(f'[{tag}] 緊急：犬猫以外は診られる病院の検索リンク', '爬虫類を診られる動物病院を探す' in e)
+        check(f'[{tag}] 緊急：犬猫以外の一般的な案内', '爬虫類の場合' in e)
 
         check(f'[{tag}] v1.1 JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()

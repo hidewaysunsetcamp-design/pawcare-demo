@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.9.0';
+  const APP_VERSION = '1.10.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -262,7 +262,7 @@
   /* ============================================================
    * ルーティング
    * ============================================================ */
-  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans'];
+  const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans', 'guide'];
   let currentView = 'home';
   function go(view) {
     if (location.hash !== '#/' + view) location.hash = '#/' + view;
@@ -288,9 +288,9 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     document.body.dataset.view = currentView;
-    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans'].indexOf(currentView) >= 0 ? 'home' : currentView;
+    const navView = ['reminders', 'nutrition', 'card', 'visits', 'import', 'book', 'game', 'plans', 'guide'].indexOf(currentView) >= 0 ? 'home' : currentView;
     document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => b.classList.toggle('active', b.dataset.nav === navView));
-    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans }[currentView];
+    const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans, guide: renderGuide }[currentView];
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
@@ -346,7 +346,7 @@
     html += '</section>';
     /* 6. そのほかの機能はアイコンのタイルにまとめる */
     const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
-      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['game', '🎖', 'がんばり']];
+      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['guide', '📗', '飼い方']];
     html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
     html += adSlotHtml('home');
     return html + localNotice;
@@ -387,6 +387,8 @@
    * 健康記録
    * ============================================================ */
   const logFilter = { petId: 'all', date: '', category: 'all' };
+  /* 飼い方のめやす：表示中の動物と品種（未選択ならいま選んでいるペット） */
+  const guideSel = { species: '', breed: '' };
   function filteredLogs() {
     return db.logs.filter((l) =>
       (logFilter.petId === 'all' || l.petId === logFilter.petId) &&
@@ -428,7 +430,7 @@
     });
     html += '</div></fieldset>';
     html += '<label>日時<input type="datetime-local" name="datetime" required value="' + esc(log.datetime) + '"></label>';
-    html += '<label class="weight-field"' + (log.category === 'weight' ? '' : ' hidden') + '>体重（kg）<input type="number" name="value" inputmode="decimal" step="0.01" min="0" max="200" value="' + esc(log.value || '') + '"></label>';
+    html += '<label class="weight-field"' + (log.category === 'weight' ? '' : ' hidden') + '>体重（kg）<input type="number" name="value" inputmode="decimal" step="0.001" min="0" max="200" value="' + esc(log.value || '') + '"></label>';
     html += '<label>メモ<textarea name="memo" rows="3" maxlength="1000" placeholder="例：半分残した／黄色い液体を少量">' + esc(log.memo || '') + '</textarea></label>';
     html += '<p class="form-error" hidden></p>';
     html += '<div class="form-actions"><button type="submit" class="btn primary block">' + (isNew ? '記録する' : '変更を保存') + '</button>';
@@ -458,7 +460,7 @@
     if (data.category === 'weight') {
       const w = parseFloat(f.get('value'));
       if (!(w > 0 && w < 200)) return showFormError(err, '体重を数値（kg）で入力してください。');
-      data.value = String(Math.round(w * 100) / 100);
+      data.value = String(Math.round(w * 1000) / 1000);
     }
     const ok = commit(() => {
       if (id) {
@@ -555,13 +557,13 @@
     let html = '<form data-form="pet" novalidate><input type="hidden" name="id" value="' + esc(p.id || '') + '">';
     html += '<label>名前<span class="req">必須</span><input name="name" required maxlength="30" value="' + esc(p.name || '') + '" placeholder="例：ポチ" autocomplete="off"></label>';
     const sp0 = p.species || 'dog';
-    html += '<fieldset><legend>動物の種類</legend><div class="species-big">' + ['dog', 'cat'].map((id) =>
-      '<button type="button" class="species-btn' + (sp0 === id ? ' active' : '') + '" data-action="pickSpecies" data-value="' + id + '">' + speciesOf(id).emoji + ' ' + speciesOf(id).label + '</button>').join('') + '</div>' +
-      '<label class="small muted">その他の動物<select name="species" data-change="species">' + optionsHtml(D.SPECIES, sp0) + '</select></label></fieldset>';
+    html += '<fieldset><legend>動物の種類</legend><div class="species-big">' + D.SPECIES.map((s) => s.id).map((id) =>
+      '<button type="button" class="species-btn' + (sp0 === id ? ' active' : '') + '" data-action="pickSpecies" data-value="' + id + '"><span class="sp-emoji" aria-hidden="true">' + speciesOf(id).emoji + '</span>' + esc(speciesOf(id).label) + '</button>').join('') + '</div>' +
+      '<label class="small muted">一覧から選ぶ<select name="species" data-change="species">' + optionsHtml(D.SPECIES, sp0) + '</select></label></fieldset>';
     html += '<div class="breed-wrap">' + breedSelectHtml(p.species || 'dog', p.breed || '') + '</div>';
     html += '<div class="two-col"><label>生年月日<input type="date" name="birthday" max="' + todayStr() + '" value="' + esc(p.birthday || '') + '"></label>';
     html += '<label>性別<select name="sex">' + optionsHtml(D.SEXES, p.sex || '', '選択') + '</select></label></div>';
-    html += '<label>体重（kg）<input type="number" name="weight" inputmode="decimal" step="0.01" min="0" max="200" value="' + esc(p.weight || '') + '" placeholder="例：5.2"></label>';
+    html += '<label>体重（kg）<input type="number" name="weight" inputmode="decimal" step="0.001" min="0" max="200" value="' + esc(p.weight || '') + '" placeholder="例：5.2"></label>';
     html += '<label>補足メモ<textarea name="memo" rows="3" maxlength="1000" placeholder="持病・アレルギー・服用中の薬など">' + esc(p.memo || '') + '</textarea></label>';
     html += '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">' + (p.id ? '保存する' : '登録する') + '</button></div></form>';
     return html;
@@ -582,7 +584,7 @@
     if (wRaw) {
       const w = parseFloat(wRaw);
       if (!(w > 0 && w < 200)) return showFormError(err, '体重は0〜200kgの数値で入力してください。');
-      weight = String(Math.round(w * 100) / 100);
+      weight = String(Math.round(w * 1000) / 1000);
     }
     const birthday = String(f.get('birthday') || '');
     if (birthday && birthday > todayStr()) return showFormError(err, '生年月日が未来の日付になっています。');
@@ -723,7 +725,14 @@
 
   function dangerSignsHtml() {
     return '<div class="alert danger"><strong>次のような様子があれば、問診を待たずにすぐ動物病院へ連絡してください</strong><ul>' +
-      D.DANGER_SIGNS.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul><p class="small">※この一覧は一般的な目安で、獣医師による監修を準備中です。迷ったら動物病院に電話で相談してください。</p></div>';
+      D.DANGER_SIGNS.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ul><p class="small">※この一覧は犬・猫を中心にした一般的な目安で、獣医師による監修を準備中です。迷ったら動物病院に電話で相談してください。</p>' + exoticNoteHtml() + '</div>';
+  }
+
+  /* 犬・猫以外の動物を飼っているときの一般的な案内（病名や基準は示さない） */
+  function exoticNoteHtml() {
+    const pet = activePet();
+    if (!pet || D.DOG_CAT.indexOf(pet.species) >= 0) return '';
+    return '<p class="small exotic-note"><strong>' + esc(speciesOf(pet.species).label) + 'の場合：</strong>具合の悪いサインは動物ごとに大きく違い、上の一覧に当てはまらないこともあります。食べない・動かない・いつもと様子が違うなど、小さな変化でも早めに、' + esc(speciesOf(pet.species).label) + 'を診られる動物病院に相談してください。</p>';
   }
 
   function petSummaryLines(p) {
@@ -864,7 +873,8 @@
 
     html += '<section class="card"><h2>🗺️ 近くの動物病院を探す</h2><p class="muted small">地図アプリで検索します。表示される営業時間などは最新でない場合があります。</p>' +
       '<div class="form-actions"><a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('動物病院') + '">近くの動物病院（Googleマップ）</a>' +
-      '<a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('夜間救急 動物病院') + '">夜間・救急の動物病院を探す</a></div></section>';
+      '<a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('夜間救急 動物病院') + '">夜間・救急の動物病院を探す</a>' +
+      (pet && D.DOG_CAT.indexOf(pet.species) < 0 ? '<a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(speciesOf(pet.species).label + ' 診察 動物病院 エキゾチック') + '">' + esc(speciesOf(pet.species).label) + 'を診られる動物病院を探す</a>' : '') + '</div></section>';
 
     html += '<section class="card"><h2>📝 電話で伝えること</h2><ul class="check-list">' +
       '<li>ペットの名前・種類・年齢・体重</li><li>どんな症状が、いつから、何回あったか</li><li>呼吸・意識・歩き方の様子</li><li>食べた可能性のあるもの（パッケージがあれば手元に）</li><li>持病・服用中の薬</li></ul>';
@@ -1393,7 +1403,7 @@
   function sanitizeShared(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const str = (v, max) => (typeof v === 'string' ? v.slice(0, max || 2000) : '');
-    const num = (v) => (/^\d{1,3}(\.\d{1,2})?$/.test(String(v)) ? String(v) : '');
+    const num = (v) => (/^\d{1,3}(\.\d{1,3})?$/.test(String(v)) ? String(v) : '');
     const dt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
     const p = raw.p && typeof raw.p === 'object' ? raw.p : {};
     const bd = str(p.bd, 10);
@@ -1891,7 +1901,7 @@
     str: (v, max) => (typeof v === 'string' ? v.slice(0, max || 2000) : ''),
     dt: (v) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(v)) ? String(v) : ''),
     date: (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : ''),
-    num: (v) => (/^\d{1,3}(\.\d{1,2})?$/.test(String(v)) ? String(v) : ''),
+    num: (v) => (/^\d{1,3}(\.\d{1,3})?$/.test(String(v)) ? String(v) : ''),
     field: (f) => (f && typeof f === 'object' && ['set', 'none', 'empty'].indexOf(f.state) >= 0 ? { state: f.state, text: S.str(f.text, 600) } : { state: 'empty', text: '未入力' }),
     pet: (p) => {
       p = p && typeof p === 'object' ? p : {};
@@ -2448,6 +2458,34 @@
       '<p class="plan-price">' + esc(p.price) + '</p><p class="muted small">' + esc(p.note) + '</p><ul class="plan-items">' + p.items.map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul></section>').join('') + '</div>' +
       '<p class="notice-small">プロ・ファミリーは準備中です（クラウドファンディングでの先行受付を予定しています）。価格は予定で、変わることがあります。<br>AIは病気の診断や治療の指示はしません。</p>';
   }
+  /* 飼い方のめやす（v1.10）：動物ごとの基本の環境＋品種ごとの由来・歴史 */
+  function renderGuide() {
+    const C = window.PAWCARE_CARE;
+    const pet = activePet();
+    if (!guideSel.species) { guideSel.species = pet ? pet.species : 'dog'; guideSel.breed = pet && C.BREEDS[pet.species] && C.BREEDS[pet.species][pet.breed] ? pet.breed : ''; }
+    const sp = guideSel.species;
+    const breeds = Object.keys(C.BREEDS[sp] || {});
+    const g = C.get(sp, guideSel.breed);
+    const sLabel = speciesOf(sp).label;
+    let html = '<h1 class="page-title">📗 飼い方のめやす</h1>';
+    html += '<section class="card"><div class="guide-pick"><label>動物<select data-guide="species">' + optionsHtml(D.SPECIES, sp) + '</select></label>' +
+      '<label>品種<select data-guide="breed">' + optionsHtml(breeds.map((b) => ({ id: b, label: b })), guideSel.breed, '（動物の基本だけ見る）') + '</select></label></div>' +
+      (pet ? '<p class="small muted">はじめは「' + esc(pet.name) + '」の種類・品種を表示しています。</p>' : '') + '</section>';
+    const rows = [['🌡️', '温度', g.temp], ['💧', '湿度', g.humid], ['🍚', 'ごはん', g.food], ['🛏️', '寝床・住まい', g.bed], ['🐾', '習性', g.habit]];
+    html += '<section class="card guide-env"><h2>' + esc(speciesOf(sp).emoji + ' ' + (guideSel.breed || sLabel)) + 'の基本の環境（おすすめ）</h2><dl class="guide-dl">' +
+      rows.map((r) => '<div><dt><span aria-hidden="true">' + r[0] + '</span>' + esc(r[1]) + '</dt><dd>' + esc(r[2]) + '</dd></div>').join('') + '</dl></section>';
+    if (g.breed) {
+      html += '<section class="card guide-breed"><h2>' + esc(guideSel.breed) + 'について</h2>' +
+        '<p><strong>原産・ルーツ：</strong>' + esc(g.breed.origin) + '</p><p><strong>歴史：</strong>' + esc(g.breed.history) + '</p>' +
+        (g.breed.care ? '<p><strong>気をつけたいこと：</strong>' + esc(g.breed.care) + '</p>' : '') + '</section>';
+    }
+    html += '<section class="card"><h2>' + esc(sLabel) + 'と人の歴史</h2><p>' + esc(g.history) + '</p></section>';
+    html += '<p class="small muted guide-note">※一般的な飼育の目安をまとめたもので、獣医師による監修を準備中です。年齢・季節・体調・個体によって合う環境は変わります。' +
+      (D.DOG_CAT.indexOf(sp) < 0 ? esc(sLabel) + 'はお店や病院によって勧める環境が違うこともあるので、迎えたお店や、' + esc(sLabel) + 'を診られる動物病院でも確認してください。' : '') +
+      '体調が気になるときは、この目安で判断せず動物病院に相談してください。</p>';
+    return html;
+  }
+
   function renderPlans() { return '<h1 class="page-title">💎 プラン</h1>' + plansHtml(); }
   function upsellHtml(kind) {
     const t = kind === 'family' ? ['👪', 'ファミリープラン（準備中）なら、家族4人で記録を自動で共有できます。'] : ['💎', 'プロプラン（準備中）なら、AIがフードの写真から成分を読み取り、毎日のごはんを見守ります。'];
@@ -2694,6 +2732,11 @@
         if (key === 'petId') commit(() => { db.settings.activePetId = el.value; });
         rerender();
       }
+      return;
+    }
+    if (el.dataset.guide) {
+      if (el.dataset.guide === 'species') { guideSel.species = el.value; guideSel.breed = ''; } else guideSel.breed = el.value;
+      rerender();
       return;
     }
     if (el.dataset.change === 'species') {

@@ -9,7 +9,11 @@ window.PAWCARE_DATA = (function () {
     { id: 'cat', label: '猫', emoji: '🐱' },
     { id: 'rabbit', label: 'うさぎ', emoji: '🐰' },
     { id: 'hamster', label: 'ハムスター', emoji: '🐹' },
-    { id: 'bird', label: '鳥', emoji: '🐦' },
+    { id: 'bird', label: 'インコ・文鳥', emoji: '🦜' },
+    { id: 'reptile', label: '爬虫類', emoji: '🦎' },
+    { id: 'fish', label: '魚', emoji: '🐠' },
+    { id: 'squirrel', label: 'リス', emoji: '🐿️' },
+    { id: 'insect', label: '昆虫', emoji: '🐜' },
     { id: 'other', label: 'その他', emoji: '🐾' }
   ];
 
@@ -46,15 +50,31 @@ window.PAWCARE_DATA = (function () {
       'セキセイインコ', 'オカメインコ', 'コザクラインコ', 'ボタンインコ', 'マメルリハ',
       '文鳥', 'カナリア', 'ジュウシマツ', 'ヨウム', 'オキナインコ'
     ].concat(COMMON_TAIL),
-    other: ['フェレット', 'モルモット', 'チンチラ', 'デグー', 'ハリネズミ', '爬虫類', '魚類'].concat(COMMON_TAIL)
+    reptile: [
+      'ヒョウモントカゲモドキ（レオパ）', 'ニシアフリカトカゲモドキ', 'フトアゴヒゲトカゲ', 'クレステッドゲッコー', 'カメレオン',
+      'ボールパイソン', 'コーンスネーク', 'ミシシッピアカミミガメ', 'クサガメ', 'ニホンイシガメ', 'ヘルマンリクガメ', 'ロシアリクガメ'
+    ].concat(COMMON_TAIL),
+    fish: ['金魚', 'メダカ', '錦鯉', 'ベタ', 'グッピー', 'ネオンテトラ', 'コリドラス', 'エンゼルフィッシュ', 'アロワナ', 'その他の熱帯魚', '海水魚'].concat(COMMON_TAIL),
+    squirrel: ['シマリス', 'アメリカアカリス', 'タイリクモモンガ', 'プレーリードッグ'].concat(COMMON_TAIL),
+    insect: ['カブトムシ', 'ヘラクレスオオカブト', 'クワガタ', 'スズムシ', 'カマキリ', 'ナナフシ', 'アリ'].concat(COMMON_TAIL),
+    other: ['フェレット', 'モルモット', 'チンチラ', 'デグー', 'ハリネズミ', 'カエル・両生類'].concat(COMMON_TAIL)
   };
 
   /* ホームのワンタップ記録に並べるカテゴリ（犬・猫に合わせた順番） */
   var QUICK = {
     dog: ['food', 'water', 'walk', 'stool', 'urine', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest'],
     cat: ['food', 'water', 'urine', 'stool', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest', 'other'],
+    rabbit: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'ingest', 'other'],
+    hamster: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'tank', 'other'],
+    bird: ['food', 'water', 'stool', 'regurgitate', 'medicine', 'weight', 'tank', 'other'],
+    reptile: ['food', 'water', 'stool', 'shed', 'temp', 'weight', 'medicine', 'tank', 'other'],
+    fish: ['food', 'tank', 'temp', 'medicine', 'other'],
+    squirrel: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'tank', 'other'],
+    insect: ['food', 'shed', 'temp', 'tank', 'other'],
     other: ['food', 'water', 'stool', 'urine', 'vomit', 'medicine', 'weight', 'ingest', 'walk', 'other']
   };
+  /* 危険な兆候の一覧・ごはんチェックの基準は犬・猫向け。ほかの動物には一般的な案内だけを出す */
+  var DOG_CAT = ['dog', 'cat'];
 
   /* ごはんチェック（v1.4）：一般的な目安の計算に使う定数
    * 栄養基準：AAFCO Dog/Cat Food Nutrient Profiles（乾物量あたりの最低値）
@@ -107,6 +127,9 @@ window.PAWCARE_DATA = (function () {
     { id: 'medicine', label: '服薬', emoji: '💊', color: '#e06c9f' },
     { id: 'weight', label: '体重', emoji: '⚖️', color: '#5a7bd6' },
     { id: 'ingest', label: '誤食の疑い', emoji: '⚠️', color: '#d23f3f' },
+    { id: 'shed', label: '脱皮', emoji: '✨', color: '#9a7bd6' },
+    { id: 'temp', label: '温度・湿度', emoji: '🌡️', color: '#e07a3d' },
+    { id: 'tank', label: '掃除・水換え', emoji: '🫧', color: '#3da3c4' },
     { id: 'other', label: 'その他', emoji: '📌', color: '#7d8a87' }
   ];
 
@@ -177,7 +200,7 @@ window.PAWCARE_DATA = (function () {
   var ADS = [];
 
   return {
-    ADS: ADS, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
+    ADS: ADS, DOG_CAT: DOG_CAT, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,
