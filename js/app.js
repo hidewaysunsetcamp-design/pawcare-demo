@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.12.0';
+  const APP_VERSION = '1.13.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -106,6 +106,7 @@
     base.settings.activePetId = petIds.has(s.activePetId) ? s.activePetId : (base.pets[0] ? base.pets[0].id : null);
     base.settings.hospital = Object.assign(base.settings.hospital, s.hospital || {});
     base.settings.night = Object.assign(base.settings.night, s.night || {});
+    base.settings.dailyTime = /^\d\d:\d\d$/.test(s.dailyTime || '') ? s.dailyTime : '';
     base.settings.owner = Object.assign(base.settings.owner, s.owner || {});
     base.settings.backupContact = Object.assign(base.settings.backupContact, s.backupContact || {});
     if (raw.game && Array.isArray(raw.game.medals)) base.game = { medals: raw.game.medals.filter((x) => typeof x === 'string').slice(0, 50), lv: Math.max(1, +raw.game.lv || 1) };
@@ -343,14 +344,16 @@
       (g.streak.current ? '<span class="lv-s">🔥' + g.streak.current + '日</span>' : '<span class="lv-s">' + L.cur + '/' + L.need + '</span>') + '</button></div></div>' +
       '<div class="stage-actions"><button type="button" class="pill" data-nav="avatar">🎨 きせかえ</button><button type="button" class="pill" data-action="shareAvatar">📸 じまんする</button></div></section>';
     /* 3. いちばん使う「ワンタップで記録」を最初の画面に */
-    html += '<section class="card"><h2>ワンタップで記録</h2><div class="quick-grid channels">';
+    const ds = dailyState(pet);
+    html += '<section class="card quick-card">' + dailyBarHtml(pet) + '<h2>ワンタップで記録</h2><div class="quick-grid channels">';
     (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c, n) => {
-      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
+      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '"' + (ds.goal.indexOf(c.id) >= 0 ? ' data-goal="' + (ds.done.indexOf(c.id) >= 0 ? 'done' : 'todo') + '"' : '') + ' style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
     const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))));
     if (due.length) html += '<button type="button" class="notice-row" data-nav="reminders"><span aria-hidden="true">⏰</span><span><strong>' + esc(due[0].title || reminderTypeOf(due[0].type).label) + '</strong> ' + esc(fmtShort(due[0].dueAt)) + (due.length > 1 ? '　ほか' + (due.length - 1) + '件' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
+    if (!db.settings.dailyTime && db.logs.some((l) => l.petId === pet.id)) html += '<button type="button" class="notice-row" data-action="dailyReminder"><span aria-hidden="true">🔔</span><span class="grow"><strong>毎日のお知らせ</strong> 記録の時間をカレンダーに登録</span><span class="chev" aria-hidden="true">›</span></button>';
     const prep = preparednessHtml(pet);
     if (prep) {
       const m = /(\d+) \/ (\d+)/.exec(prep);
@@ -371,8 +374,68 @@
 
   /* 記録から「すぐ病院へ」の一覧に当てはまる様子が分かるときだけ、ホームの一番上に出す。
      回数などからアプリが危険度を決めることはしない（診断にあたるため） */
+  /* 今日のおせわ（v1.13）：その子の毎日の目標と、今日できたもの */
+  function dailyGoal(pet) { return (D.DAILY[pet.species] || D.DAILY.other).filter((c) => (D.QUICK[pet.species] || D.QUICK.other).indexOf(c) >= 0); }
+  function dailyState(pet, day) {
+    const d = day || todayStr();
+    const goal = dailyGoal(pet);
+    const doneSet = new Set(db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 10) === d).map((l) => l.category));
+    const done = goal.filter((c) => doneSet.has(c));
+    return { goal: goal, done: done, left: goal.length - done.length, perfect: goal.length > 0 && done.length === goal.length };
+  }
+  function perfectDayCount() {
+    let n = 0;
+    db.pets.forEach((p) => {
+      const goal = dailyGoal(p); if (!goal.length) return;
+      const byDay = {};
+      db.logs.forEach((l) => { if (l.petId === p.id) (byDay[l.datetime.slice(0, 10)] = byDay[l.datetime.slice(0, 10)] || new Set()).add(l.category); });
+      Object.keys(byDay).forEach((d) => { if (goal.every((c) => byDay[d].has(c))) n++; });
+    });
+    return n;
+  }
+  function dailyBarHtml(pet) {
+    const st = dailyState(pet);
+    if (!st.goal.length) return '';
+    const pct = Math.round(st.done.length / st.goal.length * 100);
+    return '<div class="daily' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '💯 今日のおせわ パーフェクト！' : '今日のおせわ') + '</strong>' +
+      '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
+      '<div class="progress big" role="progressbar" aria-label="今日のおせわの進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + pct + '%"></span></div>' +
+      (st.perfect ? '' : '<p class="small muted">あと' + st.left + 'つ：' + esc(st.goal.filter((c) => st.done.indexOf(c) < 0).map((c) => categoryOf(c).label).join('・')) + '</p>') + '</div>';
+  }
+  /* パーフェクトのお祝い画面（Duolingoのレッスン完了のように）。危険の案内中は出さない */
+  function celebratePerfect(pet) {
+    const A = window.PAWCARE_AVATAR;
+    const g = gameStats();
+    const old = document.getElementById('celebrate'); if (old) old.remove();
+    const box = document.createElement('div');
+    box.id = 'celebrate'; box.className = 'celebrate'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', '今日のおせわパーフェクト');
+    box.innerHTML = '<div class="cel-inner"><div class="cel-av">' + A.html(pet, { size: 190, label: pet.name + 'のアバター' }) + '</div>' +
+      '<p class="cel-title">パーフェクト！</p><p class="cel-sub">' + esc(pet.name) + 'の今日のおせわ、全部できたね</p>' +
+      '<div class="cel-stats"><div><span class="cel-n">+20</span><small>XP</small></div><div><span class="cel-n">🔥' + g.streak.current + '</span><small>日連続</small></div><div><span class="cel-n">💯' + g.perfectDays + '</span><small>パーフェクト</small></div></div>' +
+      '<button type="button" class="btn primary block cel-next">つづける</button></div>';
+    document.body.appendChild(box);
+    const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 220); };
+    box.querySelector('.cel-next').addEventListener('click', close);
+    box.querySelector('.cel-next').focus();
+    if (navigator.vibrate) { try { navigator.vibrate([30, 60, 30, 60, 120]); } catch (e) { /* 非対応 */ } }
+    setTimeout(M.confetti, 150);
+  }
+  /* 毎日の「記録の時間」をカレンダーに登録（無料の通知のかわり） */
+  function dailyReminderObj(time) {
+    return { id: 'pawcare-daily', petId: '', type: 'other', title: 'PAWCARE：今日のおせわを記録', dueAt: todayStr() + 'T' + (time || '20:00'), repeat: 'daily', memo: 'PAWCAREを開いて、今日のおせわ（ごはん・お水など）を記録しましょう。' };
+  }
+  function openDailyReminder() {
+    const t = db.settings.dailyTime || '20:00';
+    openSheet('毎日のお知らせ', '<p>毎日決まった時間に「今日のおせわを記録しよう」とお知らせが届くよう、スマホのカレンダーに登録します。</p>' +
+      '<label>お知らせの時間<input type="time" id="dailyTime" value="' + esc(t) + '"></label>' +
+      '<div class="form-actions"><button type="button" class="btn primary block" data-action="dailyIcs">' + (isIOS() ? 'iPhoneのカレンダーに登録' : 'カレンダーファイル（.ics）で登録') + '</button>' +
+      '<button type="button" class="btn ghost block" data-action="dailyGoogle">Googleカレンダーに登録</button></div>' +
+      '<p class="muted small">PAWCAREにはまだ通知の仕組みがないため、カレンダーのお知らせを使います。やめたいときはカレンダーの予定を削除してください。</p>');
+  }
+
   /* アバターのセリフ：記録の状況から決まった文を選ぶ（病気の判断はしない） */
   let avLineIdx = 0;
+  let combo = 0, lastQuickAt = 0;
   function avatarLines(pet, calm) {
     const quick = D.QUICK[pet.species] || D.QUICK.other;
     const mine = db.logs.filter((l) => l.petId === pet.id);
@@ -390,7 +453,7 @@
     return window.PAWCARE_AVATAR.lines(pet, {
       calm: calm, hour: new Date().getHours(), quick: quick, today: today, daysSince: daysSince,
       streak: gameStats().streak.current, prepLeft: m ? m[2] - m[1] : 0,
-      due: due ? (due.title || reminderTypeOf(due.type).label) : ''
+      due: due ? (due.title || reminderTypeOf(due.type).label) : '', daily: dailyState(pet)
     });
   }
 
@@ -975,6 +1038,7 @@
 
     html += '<section class="card"><h2>🪪 もしもカード・受診の記録・健康手帳</h2><div class="form-actions"><button type="button" class="btn ghost block" data-nav="card">もしもカード</button><button type="button" class="btn ghost block" data-nav="book">📘 健康手帳</button><button type="button" class="btn ghost block" data-nav="visits">受診の記録</button></div></section>';
     html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
+    html += '<section class="card"><h2>🔔 毎日のお知らせ</h2><p class="muted small">' + (db.settings.dailyTime ? '毎日' + esc(db.settings.dailyTime) + 'に登録しました（カレンダーのお知らせ）。' : '毎日決まった時間に、記録のお知らせをカレンダーから受け取れます。') + '</p><button type="button" class="btn ghost block" data-action="dailyReminder">' + (db.settings.dailyTime ? '時間を変えて登録しなおす' : 'お知らせを設定する') + '</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="exportJson">バックアップを書き出す（JSON）</button>' +
       '<label class="btn ghost block file-btn">バックアップ・健康手帳ファイルを読み込む<input type="file" accept="application/json,.json" data-action-change="importJson"></label>' +
@@ -2406,17 +2470,18 @@
       if ((l.memo && l.memo.trim()) || (l.ingest && l.ingest.what)) memoByDay[d] = Math.min(5, (memoByDay[d] || 0) + 1);
     });
     const richDays = Object.keys(kindsByDay).filter((d) => kindsByDay[d].size >= 3).length;
+    const perfectDays = perfectDayCount();
     const memoPts = Object.keys(memoByDay).reduce((a, d) => a + memoByDay[d], 0);
     const careDone = db.care.filter((c) => c.source === 'reminder').length + db.logs.filter((l) => l.category === 'medicine').length;
     const prepDone = db.pets.length && db.pets.every((p) => cardDone(p)) ? 1 : 0;
     const settingsDone = (db.settings.hospital.phone ? 1 : 0) + (db.settings.night.phone ? 1 : 0);
     const items = [
-      ['記録した日', st.days, 10], ['1日に3種類以上記録した日', richDays, 5], ['メモつきの記録（1日5件まで）', memoPts, 2],
+      ['記録した日', st.days, 10], ['今日のおせわパーフェクト（1頭1日ごと）', perfectDays, 20], ['1日に3種類以上記録した日', richDays, 5], ['メモつきの記録（1日5件まで）', memoPts, 2],
       ['体重を測った週', weightWeeks, 20], ['服薬・予防・健診の実施', careDone, 10], ['受診の記録', db.visits.length, 30],
       ['問診メモの保存', db.memos.length, 15], ['もしもカードの完成（全頭）', prepDone, 50], ['病院の電話番号の登録', settingsDone, 25]
     ];
     const exp = items.reduce((a, i) => a + i[1] * i[2], 0);
-    return { exp: exp, items: items, streak: st, weightWeeks: weightWeeks };
+    return { exp: exp, items: items, streak: st, weightWeeks: weightWeeks, perfectDays: perfectDays };
   }
   function levelOf(exp) {
     /* レベルnに必要な累計EXP = 50 × (n-1) × n */
@@ -2432,6 +2497,8 @@
     { id: 's3', icon: '🔥', name: '3日連続', how: '3日続けて記録する', ok: (g) => g.streak.max >= 3 },
     { id: 's7', icon: '🔥', name: '7日連続', how: '7日続けて記録する', ok: (g) => g.streak.max >= 7 },
     { id: 's30', icon: '🏆', name: '30日連続', how: '30日続けて記録する', ok: (g) => g.streak.max >= 30 },
+    { id: 'perfect1', icon: '💯', name: 'はじめてのパーフェクト', how: '今日のおせわを全部記録する', ok: (g) => g.perfectDays >= 1 },
+    { id: 'perfect7', icon: '🌟', name: 'パーフェクト7回', how: '今日のおせわパーフェクトを7回', ok: (g) => g.perfectDays >= 7 },
     { id: 'weight4', icon: '⚖️', name: '体重番長', how: '4つの週で体重を記録する', ok: (g) => g.weightWeeks >= 4 },
     { id: 'card', icon: '🪪', name: 'そなえ上手', how: '全頭のもしもカードを完成させる', ok: () => db.pets.length && db.pets.every((p) => cardDone(p)) },
     { id: 'phones', icon: '📞', name: '連絡先ばっちり', how: 'かかりつけと夜間の病院を登録する', ok: () => !!(db.settings.hospital.phone && db.settings.night.phone) },
@@ -2627,10 +2694,14 @@
       const cat = el.dataset.cat;
       if (cat === 'weight') return openLogForm({ category: 'weight', value: pet.weight || '' });
       const log = { id: uid(), petId: pet.id, category: cat, datetime: nowLocal(), memo: '', value: '', createdAt: new Date().toISOString() };
+      const wasPerfect = dailyState(pet).perfect;
       if (!commit(() => { db.logs.push(log); })) return;
+      combo = Date.now() - lastQuickAt < 120000 ? combo + 1 : 1;
+      lastQuickAt = Date.now();
       if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* 非対応 */ } }
       rerender();
-      if (cat !== 'ingest') M.pop(document.querySelector('.quick-btn[data-cat="' + cat + '"]'));
+      if (cat !== 'ingest') M.pop(document.querySelector('.quick-btn[data-cat="' + cat + '"]'), combo > 1 ? 'コンボ×' + combo : '+1');
+      if (cat !== 'ingest' && !wasPerfect && dailyState(pet).perfect && !homeDangerBanner(pet)) { setTimeout(() => celebratePerfect(pet), 450); return; }
       if (cat === 'ingest') {
         openIngestSheet(log);
         return;
@@ -2735,6 +2806,9 @@
     newCare: () => openSheet('ワクチン・予防・健康診断の記録', careFormHtml({ date: todayStr(), type: 'vaccine' })),
     editCare: (el) => { const c = db.care.find((x) => x.id === el.dataset.id); if (c) openSheet('ワクチン・予防・健康診断の記録', careFormHtml(c)); },
     deleteCare: (el) => { if (!confirm('この記録を削除しますか？')) return; if (commit(() => { db.care = db.care.filter((c) => c.id !== el.dataset.id); })) { closeSheet(); rerender(); } },
+    dailyReminder: () => openDailyReminder(),
+    dailyIcs: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); downloadIcs(dailyReminderObj(t)); },
+    dailyGoogle: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); window.open(googleCalendarUrl(dailyReminderObj(t)), '_blank', 'noopener'); },
     petTap: (el) => {
       const A = window.PAWCARE_AVATAR;
       const pet = activePet(); if (!pet) return;

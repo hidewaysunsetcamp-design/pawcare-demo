@@ -73,6 +73,13 @@ window.PAWCARE_DATA = (function () {
     insect: ['food', 'shed', 'temp', 'tank', 'other'],
     other: ['food', 'water', 'stool', 'urine', 'vomit', 'medicine', 'weight', 'ingest', 'walk', 'other']
   };
+  /* 今日のおせわ（v1.13）：毎日つけたい記録。全部できたら「パーフェクト」。
+   * 爬虫類・昆虫は毎日食べない種が多いので、ごはんを目標に入れない */
+  var DAILY = {
+    dog: ['food', 'water', 'walk', 'stool', 'urine'], cat: ['food', 'water', 'urine', 'stool'],
+    rabbit: ['food', 'water', 'stool'], hamster: ['food', 'water'], bird: ['food', 'water', 'stool'],
+    reptile: ['temp', 'water'], fish: ['food', 'temp'], squirrel: ['food', 'water'], insect: ['temp'], other: ['food', 'water']
+  };
   /* 危険な兆候の一覧・ごはんチェックの基準は犬・猫向け。ほかの動物には一般的な案内だけを出す */
   var DOG_CAT = ['dog', 'cat'];
 
@@ -200,7 +207,7 @@ window.PAWCARE_DATA = (function () {
   var ADS = [];
 
   return {
-    ADS: ADS, DOG_CAT: DOG_CAT, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
+    ADS: ADS, DAILY: DAILY, DOG_CAT: DOG_CAT, NUTRITION: NUTRITION, QUICK: QUICK, REMINDER_TYPES: REMINDER_TYPES, REPEATS: REPEATS, SHARE_RANGES: SHARE_RANGES, SHARE_EXPIRY: SHARE_EXPIRY,
     SPECIES: SPECIES, BREEDS: BREEDS, SEXES: SEXES, CATEGORIES: CATEGORIES,
     DANGER_SIGNS: DANGER_SIGNS, SYMPTOMS: SYMPTOMS, ONSET: ONSET, FREQUENCY: FREQUENCY,
     APPETITE: APPETITE, WATER: WATER, ENERGY: ENERGY, BREATHING: BREATHING,
