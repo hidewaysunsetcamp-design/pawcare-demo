@@ -1,5 +1,5 @@
 /* PAWCARE Service Worker：オフライン表示用。HTML/JS/CSSはネットワーク優先で常に最新を取得する */
-const CACHE = 'pawcare-v1.11.0';
+const CACHE = 'pawcare-v1.11.1';
 const ASSETS = [
   './',
   './index.html',
@@ -8,7 +8,25 @@ const ASSETS = [
   './js/data.js',
   './js/care.js',
   './js/avatar.js',
-  './js/app.js',
+  './js/app/00-core.js',
+  './js/app/01-home.js',
+  './js/app/02-logs.js',
+  './js/app/03-pets.js',
+  './js/app/04-interview.js',
+  './js/app/05-emergency.js',
+  './js/app/06-settings.js',
+  './js/app/07-reminders.js',
+  './js/app/08-share.js',
+  './js/app/09-nutrition.js',
+  './js/app/10-quickstats.js',
+  './js/app/11-card.js',
+  './js/app/12-ingest.js',
+  './js/app/13-visits.js',
+  './js/app/14-handoff.js',
+  './js/app/15-book.js',
+  './js/app/16-game.js',
+  './js/app/17-plans.js',
+  './js/app/18-main.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

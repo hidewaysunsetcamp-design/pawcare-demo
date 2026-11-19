@@ -36,7 +36,9 @@
 index.html            画面の骨組み（ヘッダー・下部ナビ・モーダル）
 css/style.css         スタイル（スマホ最優先）
 js/data.js            選択肢データ（品種・記録カテゴリ・危険な兆候・問診・予定の種類/くり返し・共有の期間/有効期間）
-js/app.js             アプリ本体（保存・画面描画・操作・予定・カレンダー登録・共有リンク）
+js/app/*.js           アプリ本体。画面・機能ごとに分割（00-core＝共通・保存・ルーティング … 18-main＝イベント処理と起動）。対応表は CLAUDE.md
+js/care.js            飼い方のめやす
+js/avatar.js          ホームの「うちの子」アバター
 js/vendor/qrcode.js   QRコード生成ライブラリ（Kazuhiko Arase, MITライセンス）
 sw.js                 Service Worker（ネットワーク優先＋オフライン用キャッシュ）
 manifest.webmanifest  PWA設定
