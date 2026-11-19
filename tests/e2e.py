@@ -537,6 +537,15 @@ def run(device_name):
         check(f'[{tag}] 最初の記録で勲章「はじめの一歩」のお知らせ', True)
         nctx.close()
 
+        # ---------- デモ用リンク ----------
+        dctx = browser.new_context(**dev, locale='ja-JP', timezone_id='Asia/Tokyo')
+        dp = dctx.new_page(); dp.on('pageerror', lambda e: errors.append('demo:' + str(e)))
+        dp.goto(URL.split('#')[0] + '#/demo'); dp.wait_for_timeout(600)
+        check(f'[{tag}] デモ用リンクでサンプルデータ入りのホームが開く', 'こむぎ' in dp.inner_text('#app') and dp.evaluate('location.hash') == '#/home')
+        dp.goto(URL.split('#')[0] + '#/demo'); dp.wait_for_timeout(400)
+        check(f'[{tag}] デモ用リンクを2回開いてもデータは増えない', dp.evaluate('JSON.parse(localStorage.getItem("pawcare.v1")).pets.length') == 2)
+        dctx.close()
+
         check(f'[{tag}] JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 

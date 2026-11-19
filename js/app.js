@@ -276,6 +276,11 @@
     return VIEWS.indexOf(v) >= 0 ? v : 'home';
   }
   function render() {
+    /* デモ用リンク（#/demo）：まだデータがない端末ではサンプルデータを入れてホームを開く */
+    if ((location.hash || '').replace(/^#\/?/, '') === 'demo') {
+      history.replaceState(null, '', location.pathname + location.search + '#/home');
+      if (!db.pets.length) { loadSample(); return; }
+    }
     currentView = viewFromHash();
     document.querySelectorAll('.bottom-nav [data-nav]').forEach((b) => {
       const on = b.dataset.nav === currentView;
