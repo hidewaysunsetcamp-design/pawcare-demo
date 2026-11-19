@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.11.0';
+  const APP_VERSION = '1.12.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -198,7 +198,8 @@
     $toast.innerHTML = html;
     $toast.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { $toast.hidden = true; }, toastActions.length ? 6000 : 2800);
+    $toast.classList.remove('out');
+    toastTimer = setTimeout(() => { $toast.classList.add('out'); toastTimer = setTimeout(() => { $toast.hidden = true; $toast.classList.remove('out'); }, 200); }, toastActions.length ? 6000 : 2800);
   }
 
   function openSheet(title, html, onReady) {
@@ -221,14 +222,14 @@
       speciesOf(p.species).emoji + ' ' + esc(p.name) + '</button>').join('') + '</div>';
   }
 
-  function logItemHtml(l, showPet) {
+  function logItemHtml(l, showPet, swipe) {
     const c = categoryOf(l.category);
     const pet = getPet(l.petId);
     let detail = '';
     if (l.category === 'weight' && l.value) detail += '<span class="log-value">' + esc(l.value) + ' kg</span>';
     if (l.ingest && ingestSummary(l)) detail += '<span class="log-memo">' + esc(ingestSummary(l)) + '</span>';
     if (l.memo) detail += '<span class="log-memo">' + esc(l.memo) + '</span>';
-    return '<li><button type="button" class="log-item" data-action="editLog" data-id="' + esc(l.id) + '">' +
+    return '<li' + (swipe ? ' class="swipe-row"' : '') + '>' + (swipe ? '<button type="button" class="swipe-del" data-action="swipeDeleteLog" data-id="' + esc(l.id) + '" tabindex="-1">削除</button>' : '') + '<button type="button" class="log-item" data-action="editLog" data-id="' + esc(l.id) + '">' +
       '<span class="log-time">' + esc(l.datetime.slice(11, 16)) + '</span>' +
       '<span class="log-dot" style="--c:' + c.color + '" aria-hidden="true">' + c.emoji + '</span>' +
       '<span class="log-main"><span class="log-cat">' + esc(c.label) +
@@ -236,7 +237,7 @@
       '<span class="chev" aria-hidden="true">›</span></button></li>';
   }
 
-  function groupedLogsHtml(logs, showPet) {
+  function groupedLogsHtml(logs, showPet, swipe) {
     if (!logs.length) return '<p class="empty">記録はまだありません。</p>';
     let html = '';
     let current = null;
@@ -247,7 +248,7 @@
         html += '<h3 class="day-head">' + esc(fmtDateHeading(day)) + '</h3><ul class="log-list">';
         current = day;
       }
-      html += logItemHtml(l, showPet);
+      html += logItemHtml(l, showPet, swipe);
     });
     return html + '</ul>';
   }
@@ -264,6 +265,10 @@
    * ============================================================ */
   const VIEWS = ['home', 'logs', 'interview', 'pets', 'emergency', 'settings', 'reminders', 'nutrition', 'card', 'visits', 'book', 'game', 'plans', 'guide', 'avatar'];
   let currentView = 'home';
+  let lastView = '';
+  let isRerender = false;
+  const M = window.PAWCARE_MOTION;
+  M.sheetDrag(document.querySelector('.sheet-panel'), () => closeSheet());
   function go(view) {
     if (location.hash !== '#/' + view) location.hash = '#/' + view;
     else render();
@@ -293,11 +298,14 @@
     const fn = { home: renderHome, logs: renderLogs, interview: renderInterview, pets: renderPets, emergency: renderEmergency, settings: renderSettings, reminders: renderReminders, nutrition: renderNutrition, view: renderSharedView, card: renderCard, cardview: renderCardView, visits: renderVisits, import: renderImport, book: renderBook, game: renderGame, plans: renderPlans, guide: renderGuide, avatar: renderAvatar }[currentView];
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
+    if (currentView !== lastView && currentView !== 'emergency' && !isRerender) M.enter($app);
+    lastView = currentView;
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
   }
   function rerender() {
     const y = window.scrollY;
-    render();
+    isRerender = true;
+    try { render(); } finally { isRerender = false; }
     window.scrollTo(0, y);
   }
 
@@ -327,7 +335,7 @@
     const calm = !!homeDangerBanner(pet);
     const said = avatarLines(pet, calm);
     html += '<section class="stage' + (calm ? ' calm' : '') + '" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '">' +
-      '<div class="stage-row"><button type="button" class="av-btn" data-action="petTap" aria-label="' + esc(pet.name) + 'をなでる">' + A.svg(pet, { size: 132, label: pet.name + 'のアバター' }) + '</button>' +
+      '<div class="stage-row"><button type="button" class="av-btn" data-action="petTap" aria-label="' + esc(pet.name) + 'をなでる">' + A.html(pet, { size: 132, label: pet.name + 'のアバター' }) + '</button>' +
       '<div class="stage-side"><p class="bubble" id="avBubble" aria-live="polite">' + esc(said[0]) + '</p>' +
       '<div class="stage-name"><h1>' + esc(pet.name) + '</h1><p class="muted">' +
       esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div>' +
@@ -336,8 +344,8 @@
       '<div class="stage-actions"><button type="button" class="pill" data-nav="avatar">🎨 きせかえ</button><button type="button" class="pill" data-action="shareAvatar">📸 じまんする</button></div></section>';
     /* 3. いちばん使う「ワンタップで記録」を最初の画面に */
     html += '<section class="card"><h2>ワンタップで記録</h2><div class="quick-grid channels">';
-    (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c) => {
-      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
+    (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c, n) => {
+      html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '" style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
@@ -346,12 +354,12 @@
     const prep = preparednessHtml(pet);
     if (prep) {
       const m = /(\d+) \/ (\d+)/.exec(prep);
-      html += '<button type="button" class="notice-row" data-action="openPrep"><span aria-hidden="true">🧰</span><span><strong>もしもの準備</strong> ' + (m ? m[1] + ' / ' + m[2] + '　あと' + (m[2] - m[1]) + 'つ' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
+      html += '<button type="button" class="notice-row" data-action="openPrep"><span aria-hidden="true">🧰</span><span class="grow"><strong>もしもの準備</strong> ' + (m ? m[1] + ' / ' + m[2] + '　あと' + (m[2] - m[1]) + 'つ' : '') + (m ? '<span class="progress slim" aria-hidden="true"><span style="width:' + Math.round(m[1] / m[2] * 100) + '%"></span></span>' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
     }
     /* 5. 今日の記録は新しい3件だけ */
     const today = logsSorted(db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 10) === todayStr()));
     html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><button type="button" class="link" data-nav="logs">すべて見る</button></div>';
-    html += today.length ? '<ul class="log-list">' + today.slice(0, 3).map((l) => logItemHtml(l, false)).join('') + '</ul>' + (today.length > 3 ? '<button type="button" class="link" data-nav="logs">ほか' + (today.length - 3) + '件</button>' : '') : '<p class="empty">今日の記録はまだありません。</p>';
+    html += today.length ? '<ul class="log-list">' + today.slice(0, 3).map((l) => logItemHtml(l, false, true)).join('') + '</ul>' + (today.length > 3 ? '<button type="button" class="link" data-nav="logs">ほか' + (today.length - 3) + '件</button>' : '') : '<p class="empty">今日の記録はまだありません。</p>';
     html += '</section>';
     /* 6. そのほかの機能はアイコンのタイルにまとめる */
     const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
@@ -411,6 +419,7 @@
     const n = items.filter((i) => i.done).length;
     if (n === items.length) return '';
     return '<section class="card prep"><div class="row-between"><h2>🧰 もしもの準備</h2><span class="tag">' + n + ' / ' + items.length + '</span></div>' +
+      '<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="' + items.length + '" aria-valuenow="' + n + '" aria-label="もしもの準備の進み具合"><span style="width:' + Math.round(n / items.length * 100) + '%"></span></div>' +
       '<p class="muted small">元気なうちに済ませておくと、いざという時に迷わずに済みます。</p><ul class="prep-list">' +
       items.map((i) => '<li class="' + (i.done ? 'done' : '') + '"><span aria-hidden="true">' + (i.done ? '✅' : '⬜') + '</span><span class="prep-label">' + esc(i.label) + '</span>' + (i.done ? '' : i.btn) + '</li>').join('') + '</ul></section>';
   }
@@ -443,7 +452,8 @@
       html += '<button type="button" class="link" data-action="clearFilter">絞り込みを解除</button>';
     }
     html += '<p class="muted small">' + list.length + '件</p></section>';
-    html += groupedLogsHtml(list, logFilter.petId === 'all' && db.pets.length > 1);
+    html += groupedLogsHtml(list, logFilter.petId === 'all' && db.pets.length > 1, true);
+    if (list.length) html += '<p class="small muted swipe-hint">記録を左にずらすと削除できます（あとで取り消せます）。</p>';
     if (list.length) {
       html += '<button type="button" class="btn ghost block" data-action="exportCsv">表示中の記録をCSVで書き出す</button>';
       html += adSlotHtml('logs');
@@ -513,7 +523,14 @@
     toast(id ? '記録を更新しました' : '記録しました');
     rerender();
   }
-  function showFormError(el, msg) { el.textContent = msg; el.hidden = false; el.scrollIntoView({ block: 'nearest' }); }
+  function showFormError(el, msg) {
+    el.textContent = msg; el.hidden = false; el.scrollIntoView({ block: 'nearest' });
+    /* まちがいの合図：エラー文と、空いている必須の入力欄を横に震わせる */
+    M.shake(el);
+    const f = el.closest('form');
+    const bad = f && Array.from(f.querySelectorAll('[required]')).find((i) => !String(i.value || '').trim());
+    if (bad) { M.shake(bad.closest('label') || bad); try { bad.focus({ preventScroll: true }); } catch (e) { /* 古い端末 */ } }
+  }
 
   function csvCell(v) {
     const s = String(v == null ? '' : v);
@@ -1369,13 +1386,13 @@
     if (sharedCache.key !== key) {
       sharedCache = { key: key, data: null, error: null };
       decodePayload(key).then((d) => { sharedCache.data = sanitizeShared(d); if (!sharedCache.data) throw new Error('format'); }).catch((e) => { sharedCache.error = e; }).then(() => { if (currentView === 'view') render(); });
-      return '<p class="loading">読み込み中…</p>';
+      return '<div class="loading skeleton" aria-busy="true"><span class="sr-only">読み込み中…</span><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><b></b><b></b><b class="short"></b></div></div>';
     }
     if (sharedCache.error) {
       return '<section class="card"><h1>共有された情報を表示できません</h1><p>' + (sharedCache.error.message === 'unsupported' ? 'このブラウザは古いため表示できません。最新のChromeまたはSafariで開いてください。' : 'リンクが途中で切れている可能性があります。送ってくれた方に、もう一度リンクを送ってもらってください。') + '</p></section>';
     }
     const s = sharedCache.data;
-    if (!s) return '<p class="loading">読み込み中…</p>';
+    if (!s) return '<div class="loading skeleton" aria-busy="true"><span class="sr-only">読み込み中…</span><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><b></b><b></b><b class="short"></b></div></div>';
     if (Date.now() > s.x) {
       return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">飼い主様に、PAWCAREから新しい共有リンクを作成してもらってください。</p></section>';
     }
@@ -1968,7 +1985,7 @@
   }
   function renderCardView() {
     const st = decodeRouteData(/^#\/card\//, sanitizeCard);
-    if (st.loading) return '<p class="loading">読み込み中…</p>';
+    if (st.loading) return '<div class="loading skeleton" aria-busy="true"><span class="sr-only">読み込み中…</span><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><b></b><b></b><b class="short"></b></div></div>';
     if (st.error) return linkErrorHtml(st.error);
     const c = st.data;
     if (Date.now() > c.x) return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">送ってくれた方に、新しいリンクを作ってもらってください。</p></section>';
@@ -2200,7 +2217,7 @@
   }
   function renderImport() {
     const st = decodeRouteData(/^#\/import\//, sanitizeHandoff);
-    if (st.loading) return '<p class="loading">読み込み中…</p>';
+    if (st.loading) return '<div class="loading skeleton" aria-busy="true"><span class="sr-only">読み込み中…</span><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><i></i><b></b><b class="short"></b></div><div class="sk-card"><b></b><b></b><b class="short"></b></div></div>';
     if (st.error) return linkErrorHtml(st.error);
     const h = st.data;
     if (Date.now() > h.x) return '<section class="card"><h1>このリンクは有効期限が切れています</h1><p class="muted">送ってくれた方に、新しい引き継ぎを送ってもらってください。</p></section>';
@@ -2475,6 +2492,9 @@
     const m = fresh.length ? MEDALS.find((x) => x.id === fresh[0]) : null;
     const msg = m ? '🎖 勲章「' + m.name + '」を獲得！' + (lvUp ? '（Lv.' + L.lv + 'にアップ）' : '') : '⬆️ レベルアップ！ Lv.' + L.lv + '「' + L.title + '」';
     setTimeout(() => toastWhenFree(msg, [{ label: '見る', fn: () => go('game') }]), 300);
+    /* お祝いの紙吹雪は、危険の案内や緊急の画面が出ていないときだけ */
+    const ap = activePet();
+    if (currentView !== 'emergency' && currentView !== 'interview' && !(ap && homeDangerBanner(ap))) setTimeout(M.confetti, 250);
   }
 
   /* ============================================================
@@ -2501,13 +2521,11 @@
       '<button type="button" role="radio" aria-checked="' + (s[k] === o.id) + '" class="sw' + (colors ? ' color' : '') + (s[k] === o.id ? ' on' : '') + '" data-action="avSet" data-k="' + k + '" data-v="' + o.id + '"' +
       (colors ? ' style="--sw:' + o.hex + '" aria-label="' + esc(o.label) + '"><span></span>' : (o.a ? ' style="--sw:' + o.a + '">' : '>') + esc(o.label)) + '</button>').join('') + '</div>';
     return '<h1 class="page-title">🎨 きせかえ</h1>' +
-      '<section class="stage small" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '"><div class="av-btn">' + A.svg(pet, { size: 150, label: pet.name + 'のアバター' }) + '</div><div class="stage-name"><h1>' + esc(pet.name) + '</h1></div></section>' +
+      '<section class="stage small" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '"><div class="av-btn">' + A.html(pet, { size: 160, label: pet.name + 'のアバター' }) + '</div><div class="stage-name"><h1>' + esc(pet.name) + '</h1></div></section>' +
       '<section class="card avatar-edit">' +
-      '<h2>からだの色</h2>' + sw('color', A.COLORS, true) +
-      '<h2>もよう</h2>' + sw('pattern', A.PATTERNS) +
-      '<h2>おめめ</h2>' + sw('eyes', A.EYES) +
-      '<h2>アクセサリー</h2>' + sw('acc', A.ACCS) +
-      (s.acc !== 'none' && s.acc !== 'crown' ? '<h2>アクセサリーの色</h2>' + sw('accColor', A.COLORS, true) : '') +
+      (A.LOOKS[pet.species] && A.LOOKS[pet.species].length > 1 ? '<h2>すがた</h2>' + sw('look', A.LOOKS[pet.species]) : '') +
+      (A.look(pet).acc ? '<p class="small muted">このすがたは、はじめから小物をつけています。</p>' : '<h2>アクセサリー</h2>' + sw('acc', A.ACCS) +
+      (s.acc !== 'none' ? '<h2>' + (s.acc === 'crown' ? '宝石の色' : 'アクセサリーの色') + '</h2>' + sw('accColor', A.COLORS, true) : '')) +
       '<h2>はいけい</h2>' + sw('bg', A.BG) + '</section>' +
       '<button type="button" class="btn primary block" data-nav="home">できた！</button>' +
       '<button type="button" class="btn ghost block" data-action="shareAvatar">📸 この子をじまんする</button>';
@@ -2523,12 +2541,8 @@
     const c = cv.getContext('2d');
     const grd = c.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, bg.a); grd.addColorStop(1, bg.b);
     c.fillStyle = grd; c.fillRect(0, 0, W, H);
-    const svgText = A.svg(pet, { static: true, size: 760 });
-    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        c.drawImage(img, (W - 760) / 2, 150, 760, 798);
+      A.draw(c, pet, (W - 760) / 2, 170, 760).then(() => {
         const font = '"Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif';
         c.textAlign = 'center'; c.fillStyle = '#3D3436';
         c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
@@ -2536,9 +2550,7 @@
         c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
         c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('PAWCARE', W / 2, 1270);
         cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
-      };
-      img.onerror = () => reject(new Error('画像を作れませんでした'));
-      img.src = url;
+      }).catch(() => reject(new Error('画像を作れませんでした')));
     });
   }
 
@@ -2618,6 +2630,7 @@
       if (!commit(() => { db.logs.push(log); })) return;
       if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* 非対応 */ } }
       rerender();
+      if (cat !== 'ingest') M.pop(document.querySelector('.quick-btn[data-cat="' + cat + '"]'));
       if (cat === 'ingest') {
         openIngestSheet(log);
         return;
@@ -2630,7 +2643,7 @@
           '<button type="button" class="btn ghost block" data-action="editLog" data-id="' + esc(log.id) + '">何を食べたかメモする</button>');
         return;
       }
-      toast(log.datetime.slice(11, 16) + ' ' + categoryOf(cat).label + 'を記録', [
+      toast('✓ ' + log.datetime.slice(11, 16) + ' ' + categoryOf(cat).label + 'を記録', [
         { label: 'メモ・時刻', fn: () => openLogForm(db.logs.find((l) => l.id === log.id)) },
         { label: '取消', fn: () => { if (commit(() => { db.logs = db.logs.filter((l) => l.id !== log.id); })) { toast('取り消しました'); rerender(); } } }
       ]);
@@ -2658,6 +2671,12 @@
     doImport: (el) => doImport(el.dataset.target),
     recordIngest: () => { const i = document.getElementById('toxicInput'); recordIngestFrom(i ? i.value.trim() : ''); },
     editLogBasic: (el) => { const l = db.logs.find((x) => x.id === el.dataset.id); if (l) openLogForm(Object.assign({}, l)); },
+    swipeDeleteLog: (el) => {
+      const l = db.logs.find((x) => x.id === el.dataset.id); if (!l) return;
+      if (!commit(() => { db.logs = db.logs.filter((x) => x.id !== l.id); })) return;
+      rerender();
+      toast('🗑 ' + categoryOf(l.category).label + 'の記録を削除しました', [{ label: '元に戻す', fn: () => { if (commit(() => { db.logs.push(l); })) { toast('元に戻しました'); rerender(); } } }]);
+    },
     deleteLog: (el) => {
       if (!confirm('この記録を削除しますか？')) return;
       if (commit(() => { db.logs = db.logs.filter((l) => l.id !== el.dataset.id); })) { closeSheet(); toast('削除しました'); rerender(); }
@@ -2732,14 +2751,14 @@
     avSet: (el) => {
       const pet = activePet(); if (!pet) return;
       const A = window.PAWCARE_AVATAR;
-      const lists = { color: A.COLORS, accColor: A.COLORS, pattern: A.PATTERNS, eyes: A.EYES, acc: A.ACCS, bg: A.BG };
+      const lists = { look: A.LOOKS[pet.species] || A.LOOKS.other, accColor: A.COLORS, acc: A.ACCS, bg: A.BG };
       const k = el.dataset.k, v = el.dataset.v;
       if (!lists[k] || !lists[k].some((o) => o.id === v)) return;
       if (commit(() => { pet.avatar = Object.assign({}, pet.avatar, { [k]: v }); })) rerender();
     },
-    shareAvatar: () => {
+    shareAvatar: (el) => {
       const pet = activePet(); if (!pet) return;
-      avatarImageBlob(pet).then((blob) => {
+      M.withLoading(el, avatarImageBlob(pet)).then((blob) => {
         const file = new File([blob], 'pawcare-' + pet.name + '.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           return navigator.share({ files: [file], text: pet.name + 'の記録をPAWCAREでつけています #PAWCARE' }).catch(() => {});
@@ -2794,6 +2813,9 @@
       return;
     }
     if (e.target.closest('[data-close-sheet]')) { closeSheet(); return; }
+    /* 横にずらした記録：ずらした直後・開いている間のタップは閉じるだけ */
+    const sr = e.target.closest('.swipe-row');
+    if (sr && !e.target.closest('.swipe-del') && (sr.dataset.justSwiped || sr.classList.contains('open'))) { if (!sr.dataset.justSwiped) M.closeSwipes(); return; }
     const act = e.target.closest('[data-action]');
     if (act && actions[act.dataset.action] && act.tagName !== 'INPUT') {
       e.preventDefault();

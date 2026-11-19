@@ -547,3 +547,112 @@ body[data-view=home] .tile:active { transform: translateY(3px); box-shadow: none
 .stage-actions .pill { flex: 1; min-height: 44px; font-size: .95rem; padding: 0 10px; }
 .stage.small { text-align: center; }
 .stage.small .av-btn { margin: 0 auto; }
+
+/* ============================================================
+ * v1.12 動きと手応え（「AIでアプリを作る時に使う、動きの名前24」から、使える所に）
+ * どれも「動きを減らす」設定ではオフ。緊急時の画面ではお祝い・スタッガーを使わない
+ * ============================================================ */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* イラストのアバター */
+.av { position: relative; display: inline-block; vertical-align: middle; }
+.av .av-body { position: absolute; inset: 0; transform-origin: 50% 95%; }
+.av img { display: block; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; user-select: none; }
+.av .av-over { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.av .av-shadow { position: absolute; left: 22%; right: 22%; bottom: 1%; height: 7%; border-radius: 50%; background: rgba(0, 0, 0, .07); }
+.av-live .av-body { animation: av-breathe 2.8s ease-in-out infinite; }
+.av-live.av-fish .av-body, .av-live.av-bird .av-body { animation: av-float 3.2s ease-in-out infinite; }
+.av-live .av-shadow { animation: av-shadow 2.8s ease-in-out infinite; }
+.av-btn.jump .av-body { animation: av-jump .55s cubic-bezier(.3, 1.6, .5, 1); }
+.stage.calm .av-live .av-body, .stage.calm .av-live .av-shadow { animation: none !important; }
+@keyframes av-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.025, .975); } }
+@keyframes av-float { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-6px) rotate(1.5deg); } }
+
+/* 1 リップル（押した所から波紋） */
+.has-ripple { position: relative; overflow: hidden; }
+.ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .16; transform: scale(0); pointer-events: none; animation: ripple .55s ease-out forwards; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* 1 トグル（チェックボックスをスイッチの見た目に） */
+input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: 0 0 auto; width: 46px; height: 28px; margin: 0 8px 0 0; border-radius: 999px;
+  background: #cfd8dc; position: relative; vertical-align: middle; cursor: pointer; transition: background .2s; }
+input[type=checkbox]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .25s cubic-bezier(.3, 1.5, .5, 1); }
+input[type=checkbox]:checked { background: var(--brand); }
+input[type=checkbox]:checked::after { transform: translateX(18px); }
+input[type=checkbox]:focus-visible { outline: 3px solid var(--soft-blue-soft); outline-offset: 2px; }
+
+/* 1 ローディングボタン（くるくる→チェック） */
+.is-loading { position: relative; color: transparent !important; pointer-events: none; }
+.is-loading::after { content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%;
+  border: 3px solid rgba(0, 0, 0, .15); border-top-color: var(--brand); animation: spin .7s linear infinite; }
+.btn.primary.is-loading::after { border-color: rgba(255, 255, 255, .35); border-top-color: #fff; }
+.is-done { animation: done-pop .4s ease; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes done-pop { 50% { transform: scale(1.06); } }
+
+/* 2 スケルトン（中身の形を先に出す） */
+.skeleton { display: grid; gap: 12px; padding-top: 6px; }
+.sk-card { display: grid; grid-template-columns: 56px 1fr; grid-auto-rows: 14px; gap: 10px 12px; padding: 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+.sk-card i { grid-row: span 3; height: 56px; border-radius: 12px; }
+.sk-card b { grid-column: 2; border-radius: 7px; }
+.sk-card b.short { width: 55%; }
+.sk-card:not(:has(i)) b { grid-column: 1 / -1; }
+.sk-card i, .sk-card b { background: linear-gradient(90deg, #eef2f3 25%, #f8fafb 50%, #eef2f3 75%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* 2 プログレスバー（もしもの準備の進み具合） */
+.progress { display: block; height: 10px; border-radius: 999px; background: #e7eef0; overflow: hidden; margin: 6px 0 4px; }
+.progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f2a65a, #f7c46a); transition: width .5s ease; }
+.progress.slim { height: 6px; margin: 4px 0 0; max-width: 220px; }
+.notice-row .grow { flex: 1; min-width: 0; }
+
+/* 3 トースト（下からふわっと出て、すっと消える） */
+.toast { animation: toast-in .35s cubic-bezier(.2, 1.4, .4, 1); }
+.toast.out { animation: toast-out .2s ease forwards; }
+@keyframes toast-in { from { transform: translate(-50%, 24px) scale(.96); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes toast-out { to { transform: translate(-50%, 12px); opacity: 0; } }
+
+/* 3 ボトムシート（ばねで出て、つまみを下に引くと閉じる） */
+.sheet-grab { display: none; }
+@media (max-width: 599px) {
+  .sheet-panel { animation: sheet-up .38s cubic-bezier(.2, 1.25, .4, 1); transition: transform .25s ease; }
+  .sheet-grab { display: block; width: 44px; height: 5px; border-radius: 3px; background: #c9d4d8; margin: 8px auto -4px; touch-action: none; }
+  .sheet-head { touch-action: none; }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+/* 4 スワイプアクション（記録を左にずらすと「削除」） */
+.swipe-row { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-row .log-item { position: relative; z-index: 1; background: var(--card); transition: transform .25s cubic-bezier(.2, 1.2, .4, 1); }
+.swipe-del { position: absolute; right: 0; top: 0; bottom: 0; width: 88px; border: 0; background: var(--danger); color: #fff; font: inherit; font-weight: 700; }
+.swipe-hint { margin: 6px 4px; }
+
+/* 5 いいねのはじけ（ワンタップ記録が「ぽん」とはずんで＋1） */
+.popped { animation: pop .45s cubic-bezier(.3, 1.8, .5, 1); }
+.plus-one { position: absolute; right: 8px; top: 6px; font-weight: 800; color: var(--brand); pointer-events: none; animation: plus-one .9s ease-out forwards; }
+@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes plus-one { 0% { transform: translateY(6px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+
+/* 5 コンフェッティ（レベルアップ・勲章のときだけ） */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
+.confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall linear forwards; }
+@keyframes confetti-fall { to { transform: translate(var(--x), 105vh) rotate(var(--r)); } }
+
+/* 6 シェイク（まちがいを横に震えて知らせる） */
+.shake { animation: shake .42s cubic-bezier(.36, .07, .19, .97); }
+@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+
+/* 7 スタッガー（画面が切り替わったとき、上から順にふわっと） */
+#app.enter > * { animation: rise .38s cubic-bezier(.2, .9, .3, 1) both; }
+#app.enter > *:nth-child(2) { animation-delay: .04s; } #app.enter > *:nth-child(3) { animation-delay: .08s; }
+#app.enter > *:nth-child(4) { animation-delay: .12s; } #app.enter > *:nth-child(5) { animation-delay: .16s; }
+#app.enter > *:nth-child(n+6) { animation-delay: .2s; }
+#app.enter .channels .quick-btn { animation: rise .35s cubic-bezier(.2, .9, .3, 1) both; animation-delay: calc(.1s + var(--n, 0) * .025s); }
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple, .confetti, .plus-one { display: none !important; }
+  .toast, .toast.out, .sheet-panel, .popped, .shake, #app.enter > *, #app.enter .channels .quick-btn, .av-live .av-body, .av-live .av-shadow, .is-done { animation: none !important; }
+  .swipe-row .log-item, input[type=checkbox]::after, .progress > span { transition: none; }
+}
