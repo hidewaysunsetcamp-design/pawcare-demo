@@ -698,3 +698,70 @@ input[type=checkbox]:focus-visible { outline: 3px solid var(--soft-blue-soft); o
 @keyframes cel-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes cel-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-24px); } }
 @media (prefers-reduced-motion: reduce) { .celebrate, .cel-av, .cel-title, .cel-stats > div { animation: none !important; } .progress.big > span { transition: none; } }
+
+/* ============================================================
+ * v1.14 Finch×Duolingo×Atoms：会いたくなるホーム・タップの瞬間の反応・今週のようす・音と振動
+ * ============================================================ */
+.haptic-switch { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+input.haptic-input { -webkit-appearance: auto; appearance: auto; }
+
+/* ステージ（上にうちの子、すぐ下に今日のお世話） */
+.stage.finch { text-align: center; padding: 10px 12px 12px; }
+.stage-top { display: flex; align-items: center; gap: 8px; }
+.stage-top .spacer { flex: 1; }
+.stage-top .lv-chip { margin: 0; }
+.streak-chip { padding: 4px 10px; border-radius: 999px; background: #fff3e0; border: 2px solid #ffd9a8; font-weight: 800; color: #e8710a; font-size: .9rem; }
+.streak-chip.off { filter: grayscale(1); opacity: .6; }
+.icon-pill { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #d3dfe3; background: #fff; font-size: 1.2rem; box-shadow: 0 2px 0 #d3dfe3; }
+.icon-pill:active { transform: translateY(2px); box-shadow: none; }
+.stage.finch .bubble { display: inline-block; max-width: 92%; margin: 8px auto 0; text-align: center; }
+.stage.finch .bubble::after { left: 50%; top: auto; bottom: -10px; margin: 0 0 0 -8px; border: 8px solid transparent; border-top-color: #d9e4e8; border-bottom: 0; }
+.stage.finch .av-btn { margin: 2px auto -4px; }
+.stage.finch .stage-name h1 { font-size: 1.35rem; }
+.stage.finch .stage-name p { margin-bottom: 8px; }
+
+/* タップした瞬間の反応：ぴょこっと跳ねて首をかしげる */
+.av-btn.react .av-body { animation: av-react .7s cubic-bezier(.3, 1.7, .5, 1); }
+@keyframes av-react { 0% { transform: none; } 30% { transform: translateY(-14px) rotate(-6deg) scale(1.04); } 60% { transform: translateY(0) rotate(4deg); } 100% { transform: none; } }
+
+/* 今日のお世話の一覧 */
+.care { text-align: left; margin-top: 4px; padding: 10px 12px 8px; border-radius: 20px; background: #fff; border: 2px solid #e2edf1; }
+.care.perfect { background: #fff8e1; border-color: #f6d77a; }
+.care.perfect .progress.big > span { background: linear-gradient(180deg, #ffd45c, #f5b417); }
+.care-list { list-style: none; margin: 6px 0 2px; padding: 0; display: grid; gap: 6px; }
+.care-row { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 10px; border-radius: 16px;
+  border: 2px solid #e2edf1; background: #f8fbfc; font: inherit; text-align: left; color: var(--text); box-shadow: 0 3px 0 #e2edf1; }
+.care-row:active { transform: translateY(3px); box-shadow: none; }
+.care-ic { font-size: 1.5rem; width: 34px; text-align: center; }
+.care-label { flex: 1; font-weight: 800; }
+.care-label small { display: block; font-weight: 600; color: var(--muted); }
+.care-check { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #cfdbe0; background: #fff; display: grid; place-items: center; font-weight: 900; color: #fff; }
+.care-row.done { background: #effae9; border-color: #bfe8ae; box-shadow: 0 3px 0 #bfe8ae; }
+.care-row.done .care-check { background: #58c442; border-color: #58c442; animation: check-pop .35s cubic-bezier(.3, 1.8, .5, 1); }
+.care .link.small { font-size: .85rem; margin-top: 4px; }
+@keyframes check-pop { from { transform: scale(.3); } to { transform: none; } }
+
+/* 今週のようす（数字の下に、次の行動が分かる一文） */
+.wm-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.wm-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.wm-list li:first-child { border-top: 0; }
+.wm-ic { font-size: 1.4rem; width: 32px; text-align: center; }
+.wm-main { flex: 1; min-width: 0; }
+.wm-title b { font-size: 1.1rem; }
+.wm-main small { display: block; color: var(--muted); }
+.wm-dots { display: grid; grid-template-columns: repeat(7, 10px); gap: 3px; }
+.wm-dots i { width: 10px; height: 10px; border-radius: 3px; background: #e5ecef; }
+.wm-dots i.on { background: #58c442; }
+.check-list { display: grid; gap: 6px; margin: 8px 0; }
+.check-row { display: flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 700; }
+
+/* パーフェクトの肉球スタンプ */
+.cel-card { position: relative; padding: 14px 14px 10px; margin: 6px 0 14px; border-radius: 22px; background: #fff; border: 2px solid #f3dc92; box-shadow: 0 4px 0 #f3dc92; }
+.cel-card .cel-title { margin-top: 0; }
+.cel-done { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0; padding: 0; }
+.cel-done li { padding: 4px 10px; border-radius: 999px; background: #effae9; color: #2f7d22; font-weight: 800; font-size: .9rem; }
+.paw-stamp { position: absolute; right: -6px; top: -18px; width: 86px; height: 86px; color: #e2533c; transform: rotate(-14deg); opacity: .9;
+  animation: stamp .45s cubic-bezier(.2, 1.5, .4, 1) .55s both; }
+.paw-stamp svg { width: 100%; height: 100%; }
+@keyframes stamp { 0% { transform: scale(2.8) rotate(-30deg); opacity: 0; } 70% { transform: scale(.9) rotate(-12deg); opacity: 1; } 100% { transform: scale(1) rotate(-14deg); opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .av-btn.react .av-body, .care-row.done .care-check, .paw-stamp { animation: none !important; } }

@@ -29,7 +29,7 @@
   /* 2. シェイク：入力のまちがいを横に震えて知らせる */
   function shake(el) {
     if (!el) return;
-    if (navigator.vibrate) { try { navigator.vibrate([20, 40, 20]); } catch (x) { /* 非対応 */ } }
+    if (window.PAWCARE_MOTION && window.PAWCARE_MOTION.hapticOn()) haptic('error');
     if (reduced()) return;
     el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
     setTimeout(function () { el.classList.remove('shake'); }, 500);
@@ -151,5 +151,57 @@
     enter.t = setTimeout(function () { app.classList.remove('enter'); }, 800);
   }
 
-  window.PAWCARE_MOTION = { shake: shake, pop: pop, confetti: confetti, withLoading: withLoading, sheetDrag: sheetDrag, closeSwipes: closeSwipes, enter: enter, reduced: reduced };
+  /* 9. サウンドデザイン：音源ファイルを使わず、その場で短い音を作る（Web Audio）。
+   * 小さく・短く・高めのやさしい音。マナーモードや設定オフでは鳴らさない */
+  var ac = null;
+  function ctx() {
+    if (!ac) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(c, t, freq, dur, type, vol, slideTo) {
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.12, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  var SOUNDS = {
+    tick: function (c, t) { tone(c, t, 880, 0.09, 'sine', 0.10, 1320); },                       /* 記録：ぽっ */
+    combo: function (c, t) { tone(c, t, 988, 0.08, 'sine', 0.10); tone(c, t + 0.07, 1319, 0.12, 'sine', 0.10); },  /* コンボ：ぴぽっ */
+    stamp: function (c, t) { tone(c, t, 180, 0.12, 'triangle', 0.25, 90); [523, 659, 784, 1047].forEach(function (f, i) { tone(c, t + 0.12 + i * 0.08, f, 0.22, 'sine', 0.09); }); }, /* パーフェクト：どんっ＋ドミソド */
+    tap: function (c, t) { tone(c, t, 660, 0.06, 'sine', 0.06, 990); },                          /* なでる：ぷっ */
+    error: function (c, t) { tone(c, t, 300, 0.1, 'triangle', 0.1); tone(c, t + 0.11, 220, 0.14, 'triangle', 0.1); }
+  };
+  function sound(name, on) {
+    if (on === false || !SOUNDS[name]) return;
+    try { var c = ctx(); if (c) SOUNDS[name](c, c.currentTime + 0.01); } catch (x) { /* 鳴らせない端末 */ }
+  }
+
+  /* 10. ハプティクス：Androidは振動、iPhoneはSafariのスイッチ部品の「コツッ」を使う（iOS 18以降）。
+   * どちらも非対応なら何もしない */
+  var PAT = { light: 12, success: [14, 50, 14], combo: [10, 40, 10, 40, 10], stamp: [30, 60, 30, 60, 120], error: [20, 40, 20] };
+  var iosSwitch = null;
+  function iosTick() {
+    if (!iosSwitch) {
+      var l = document.createElement('label'); l.className = 'haptic-switch'; l.setAttribute('aria-hidden', 'true');
+      var i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1; i.className = 'haptic-input';
+      l.appendChild(i); document.body.appendChild(l); iosSwitch = l;
+    }
+    iosSwitch.click();
+  }
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function haptic(kind) {
+    var p = PAT[kind] || PAT.light;
+    if (navigator.vibrate) { try { navigator.vibrate(p); return; } catch (x) { /* 非対応 */ } }
+    if (isIOS) {
+      try {
+        var n = Array.isArray(p) ? Math.ceil(p.length / 2) : 1;
+        iosTick();
+        for (var k = 1; k < Math.min(n, 3); k++) setTimeout(iosTick, k * 70);
+      } catch (x) { /* 非対応 */ }
+    }
+  }
+
+  window.PAWCARE_MOTION = { hapticOn: function () { return true; }, sound: sound, haptic: haptic, shake: shake, pop: pop, confetti: confetti, withLoading: withLoading, sheetDrag: sheetDrag, closeSwipes: closeSwipes, enter: enter, reduced: reduced };
 })();

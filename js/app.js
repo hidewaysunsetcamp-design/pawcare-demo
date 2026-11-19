@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.13.0';
+  const APP_VERSION = '1.14.0';
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -107,6 +107,8 @@
     base.settings.hospital = Object.assign(base.settings.hospital, s.hospital || {});
     base.settings.night = Object.assign(base.settings.night, s.night || {});
     base.settings.dailyTime = /^\d\d:\d\d$/.test(s.dailyTime || '') ? s.dailyTime : '';
+    base.settings.sound = s.sound === 'off' ? 'off' : 'on';
+    base.settings.haptic = s.haptic === 'off' ? 'off' : 'on';
     base.settings.owner = Object.assign(base.settings.owner, s.owner || {});
     base.settings.backupContact = Object.assign(base.settings.backupContact, s.backupContact || {});
     if (raw.game && Array.isArray(raw.game.medals)) base.game = { medals: raw.game.medals.filter((x) => typeof x === 'string').slice(0, 50), lv: Math.max(1, +raw.game.lv || 1) };
@@ -335,21 +337,25 @@
     const bg = A.find(A.BG, A.settings(pet).bg);
     const calm = !!homeDangerBanner(pet);
     const said = avatarLines(pet, calm);
-    html += '<section class="stage' + (calm ? ' calm' : '') + '" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '">' +
-      '<div class="stage-row"><button type="button" class="av-btn" data-action="petTap" aria-label="' + esc(pet.name) + 'をなでる">' + A.html(pet, { size: 132, label: pet.name + 'のアバター' }) + '</button>' +
-      '<div class="stage-side"><p class="bubble" id="avBubble" aria-live="polite">' + esc(said[0]) + '</p>' +
+    /* Finchのように「会いたくなる」ホーム：上にうちの子、すぐ下に今日のお世話の一覧（v1.14） */
+    const reacting = avReact && avReact.petId === pet.id && Date.now() < avReact.until && !calm;
+    html += '<section class="stage finch' + (calm ? ' calm' : '') + '" style="--bg-a:' + bg.a + ';--bg-b:' + bg.b + '">' +
+      '<div class="stage-top"><button type="button" class="lv-chip game-bar" data-nav="game" aria-label="レベル' + L.lv + '、がんばり記録を開く"><span class="lv-n">Lv.' + L.lv + '</span><span class="gb-track"><span style="width:' + Math.round(L.cur / L.need * 100) + '%"></span></span></button>' +
+      '<span class="streak-chip' + (g.streak.current ? '' : ' off') + '" aria-label="連続記録' + g.streak.current + '日">🔥 ' + g.streak.current + '</span>' +
+      '<span class="spacer"></span><button type="button" class="icon-pill" data-nav="avatar" aria-label="きせかえ">🎨</button><button type="button" class="icon-pill" data-action="shareAvatar" aria-label="じまんする">📸</button></div>' +
+      '<p class="bubble" id="avBubble" aria-live="polite">' + esc(reacting ? avReact.text : said[0]) + '</p>' +
+      '<button type="button" class="av-btn' + (reacting ? ' react' : '') + '" data-action="petTap" aria-label="' + esc(pet.name) + 'をなでる">' + A.html(pet, { size: 176, label: pet.name + 'のアバター' }) + '</button>' +
       '<div class="stage-name"><h1>' + esc(pet.name) + '</h1><p class="muted">' +
       esc([pet.breed || sp.label, ageText(pet.birthday), pet.weight ? pet.weight + 'kg' : ''].filter(Boolean).join('・')) + '</p></div>' +
-      '<button type="button" class="lv-chip game-bar" data-nav="game" aria-label="レベル' + L.lv + '、がんばり記録を開く"><span class="lv-n">Lv.' + L.lv + '</span><span class="gb-track"><span style="width:' + Math.round(L.cur / L.need * 100) + '%"></span></span>' +
-      (g.streak.current ? '<span class="lv-s">🔥' + g.streak.current + '日</span>' : '<span class="lv-s">' + L.cur + '/' + L.need + '</span>') + '</button></div></div>' +
-      '<div class="stage-actions"><button type="button" class="pill" data-nav="avatar">🎨 きせかえ</button><button type="button" class="pill" data-action="shareAvatar">📸 じまんする</button></div></section>';
+      careListHtml(pet) + '</section>';
     /* 3. いちばん使う「ワンタップで記録」を最初の画面に */
     const ds = dailyState(pet);
-    html += '<section class="card quick-card">' + dailyBarHtml(pet) + '<h2>ワンタップで記録</h2><div class="quick-grid channels">';
+    html += '<section class="card quick-card"><h2>ワンタップで記録</h2><div class="quick-grid channels">';
     (D.QUICK[pet.species] || D.QUICK.other).map(categoryOf).forEach((c, n) => {
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '"' + (ds.goal.indexOf(c.id) >= 0 ? ' data-goal="' + (ds.done.indexOf(c.id) >= 0 ? 'done' : 'todo') + '"' : '') + ' style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
+    html += weekMapHtml(pet);
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
     const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))));
     if (due.length) html += '<button type="button" class="notice-row" data-nav="reminders"><span aria-hidden="true">⏰</span><span><strong>' + esc(due[0].title || reminderTypeOf(due[0].type).label) + '</strong> ' + esc(fmtShort(due[0].dueAt)) + (due.length > 1 ? '　ほか' + (due.length - 1) + '件' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
@@ -375,7 +381,11 @@
   /* 記録から「すぐ病院へ」の一覧に当てはまる様子が分かるときだけ、ホームの一番上に出す。
      回数などからアプリが危険度を決めることはしない（診断にあたるため） */
   /* 今日のおせわ（v1.13）：その子の毎日の目標と、今日できたもの */
-  function dailyGoal(pet) { return (D.DAILY[pet.species] || D.DAILY.other).filter((c) => (D.QUICK[pet.species] || D.QUICK.other).indexOf(c) >= 0); }
+  function dailyGoal(pet) {
+    const q = D.QUICK[pet.species] || D.QUICK.other;
+    const custom = Array.isArray(pet.daily) ? pet.daily.filter((c) => q.indexOf(c) >= 0).slice(0, 6) : [];
+    return (custom.length ? custom : (D.DAILY[pet.species] || D.DAILY.other)).filter((c) => q.indexOf(c) >= 0);
+  }
   function dailyState(pet, day) {
     const d = day || todayStr();
     const goal = dailyGoal(pet);
@@ -402,6 +412,60 @@
       '<div class="progress big" role="progressbar" aria-label="今日のおせわの進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + pct + '%"></span></div>' +
       (st.perfect ? '' : '<p class="small muted">あと' + st.left + 'つ：' + esc(st.goal.filter((c) => st.done.indexOf(c) < 0).map((c) => categoryOf(c).label).join('・')) + '</p>') + '</div>';
   }
+  /* 今日のお世話の一覧（ステージの中）。行をタップするとそのまま記録できる */
+  function careListHtml(pet) {
+    const st = dailyState(pet);
+    if (!st.goal.length) return '';
+    const t = todayStr();
+    const lastToday = (c) => logsSorted(db.logs.filter((l) => l.petId === pet.id && l.category === c && l.datetime.slice(0, 10) === t))[0];
+    return '<div class="care' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '🐾 今日のお世話 パーフェクト！' : '今日のお世話') + '</strong>' +
+      '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
+      '<div class="progress big" role="progressbar" aria-label="今日のお世話の進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + Math.round(st.done.length / st.goal.length * 100) + '%"></span></div>' +
+      '<ul class="care-list">' + st.goal.map((c) => {
+        const cat = categoryOf(c), done = st.done.indexOf(c) >= 0, l = done ? lastToday(c) : null;
+        return '<li><button type="button" class="care-row' + (done ? ' done' : '') + '" data-action="quick" data-cat="' + c + '"><span class="care-ic" aria-hidden="true">' + cat.emoji + '</span>' +
+          '<span class="care-label">' + esc(cat.label) + (l ? '<small>' + esc(l.datetime.slice(11, 16)) + 'に記録</small>' : '') + '</span>' +
+          '<span class="care-check" aria-label="' + (done ? '記録ずみ' : 'まだ') + '">' + (done ? '✓' : '') + '</span></button></li>';
+      }).join('') + '</ul><button type="button" class="link small" data-action="editDaily">お世話の項目を変える</button></div>';
+  }
+  function editDailyHtml(pet) {
+    const goal = dailyGoal(pet);
+    const opts = (D.QUICK[pet.species] || D.QUICK.other).filter((c) => ['ingest', 'weight', 'vomit', 'regurgitate', 'other'].indexOf(c) < 0);
+    return '<form data-form="daily"><p class="muted small">毎日つけたい記録を選んでください（1〜6こ）。全部できたら「パーフェクト」です。</p>' +
+      '<div class="check-list">' + opts.map((c) => '<label class="check-row"><input type="checkbox" name="d_' + c + '"' + (goal.indexOf(c) >= 0 ? ' checked' : '') + '><span>' + categoryOf(c).emoji + ' ' + esc(categoryOf(c).label) + '</span></label>').join('') + '</div>' +
+      '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">保存</button>' +
+      '<button type="button" class="btn ghost block" data-action="resetDaily">おすすめに戻す</button></div></form>';
+  }
+  /* Atomsのように、数字の下に「次に何をするか」が分かる短い一文。病気の判断はしない */
+  function weekMapHtml(pet) {
+    const items = dailyGoal(pet).slice();
+    if ((D.QUICK[pet.species] || []).indexOf('weight') >= 0) items.push('weight');
+    if (!items.length) return '';
+    const days = [];
+    for (let i = 6; i >= 0; i--) days.push(toLocalInput(new Date(Date.now() - i * 86400000)).slice(0, 10));
+    const wk = ['日', '月', '火', '水', '木', '金', '土'];
+    const mine = db.logs.filter((l) => l.petId === pet.id);
+    const rows = items.map((c) => {
+      const ls = mine.filter((l) => l.category === c);
+      const set = new Set(ls.map((l) => l.datetime.slice(0, 10)));
+      const n7 = ls.filter((l) => l.datetime.slice(0, 10) >= days[0]).length;
+      const prevStart = toLocalInput(new Date(Date.now() - 13 * 86400000)).slice(0, 10);
+      const nPrev = ls.filter((l) => l.datetime.slice(0, 10) >= prevStart && l.datetime.slice(0, 10) < days[0]).length;
+      const last = logsSorted(ls)[0];
+      let note;
+      if (!last) note = 'まだ記録がありません';
+      else {
+        const ld = last.datetime.slice(0, 10);
+        const lastTxt = ld === days[6] ? '今日' : ld === days[5] ? 'きのう' : (ld >= days[0] ? wk[new Date(ld + 'T12:00').getDay()] + '曜日' : fmtShort(last.datetime).split(' ')[0]);
+        note = '最後は' + lastTxt + (c === 'weight' && last.value ? '（' + last.value + 'kg）' : '') + (nPrev && n7 !== nPrev ? '・先週より' + Math.abs(n7 - nPrev) + '回' + (n7 > nPrev ? '多い' : '少ない') : '');
+      }
+      const cat = categoryOf(c);
+      return '<li><span class="wm-ic" aria-hidden="true">' + cat.emoji + '</span><span class="wm-main"><span class="wm-title">今週の' + esc(cat.label) + ' <b>' + n7 + '回</b></span><small>' + esc(note) + '</small></span>' +
+        '<span class="wm-dots" aria-hidden="true">' + days.map((d) => '<i class="' + (set.has(d) ? 'on' : '') + '"></i>').join('') + '</span></li>';
+    }).join('');
+    return '<section class="card week-map"><div class="row-between"><h2>今週のようす</h2><span class="small muted">' + esc(wk[new Date(days[0] + 'T12:00').getDay()]) + '〜' + esc(wk[new Date(days[6] + 'T12:00').getDay()]) + '</span></div><ul class="wm-list">' + rows + '</ul></section>';
+  }
+
   /* パーフェクトのお祝い画面（Duolingoのレッスン完了のように）。危険の案内中は出さない */
   function celebratePerfect(pet) {
     const A = window.PAWCARE_AVATAR;
@@ -410,15 +474,17 @@
     const box = document.createElement('div');
     box.id = 'celebrate'; box.className = 'celebrate'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', '今日のおせわパーフェクト');
     box.innerHTML = '<div class="cel-inner"><div class="cel-av">' + A.html(pet, { size: 190, label: pet.name + 'のアバター' }) + '</div>' +
-      '<p class="cel-title">パーフェクト！</p><p class="cel-sub">' + esc(pet.name) + 'の今日のおせわ、全部できたね</p>' +
+      '<div class="cel-card"><p class="cel-title">パーフェクト！</p><p class="cel-sub">' + esc(pet.name) + 'の今日のお世話、全部できたね</p>' +
+      '<ul class="cel-done">' + dailyGoal(pet).map((c) => '<li>' + categoryOf(c).emoji + ' ' + esc(categoryOf(c).label) + '</li>').join('') + '</ul>' +
+      '<span class="paw-stamp" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="5"/><ellipse cx="50" cy="62" rx="17" ry="14" fill="currentColor"/><ellipse cx="29" cy="42" rx="7" ry="9" fill="currentColor"/><ellipse cx="42" cy="30" rx="7" ry="9" fill="currentColor"/><ellipse cx="58" cy="30" rx="7" ry="9" fill="currentColor"/><ellipse cx="71" cy="42" rx="7" ry="9" fill="currentColor"/></svg></span></div>' +
       '<div class="cel-stats"><div><span class="cel-n">+20</span><small>XP</small></div><div><span class="cel-n">🔥' + g.streak.current + '</span><small>日連続</small></div><div><span class="cel-n">💯' + g.perfectDays + '</span><small>パーフェクト</small></div></div>' +
       '<button type="button" class="btn primary block cel-next">つづける</button></div>';
     document.body.appendChild(box);
     const close = () => { box.classList.add('out'); setTimeout(() => box.remove(), 220); };
     box.querySelector('.cel-next').addEventListener('click', close);
     box.querySelector('.cel-next').focus();
-    if (navigator.vibrate) { try { navigator.vibrate([30, 60, 30, 60, 120]); } catch (e) { /* 非対応 */ } }
-    setTimeout(M.confetti, 150);
+    setTimeout(() => { M.sound('stamp', soundOn()); if (hapticOn()) M.haptic('stamp'); }, 650);
+    setTimeout(M.confetti, 700);
   }
   /* 毎日の「記録の時間」をカレンダーに登録（無料の通知のかわり） */
   function dailyReminderObj(time) {
@@ -436,6 +502,11 @@
   /* アバターのセリフ：記録の状況から決まった文を選ぶ（病気の判断はしない） */
   let avLineIdx = 0;
   let combo = 0, lastQuickAt = 0;
+  let avReact = null;
+  function soundOn() { return db.settings.sound !== 'off'; }
+  function hapticOn() { return db.settings.haptic !== 'off'; }
+  M.hapticOn = hapticOn;
+  const REACT = { food: 'ごはん、おいしかった！', water: 'お水ごくごく、ありがとう！', walk: 'お散歩たのしかった〜！', stool: 'すっきり！ 記録ありがと', urine: 'トイレ、ちゃんとできたよ', groom: 'ブラッシング、きもちいい〜', temp: 'ちょうどいい温度だね', tank: 'おへやピカピカ！', medicine: 'おくすり、がんばった！', shed: 'ぬぎぬぎできたよ', weight: '体重はかってくれてありがと' };
   function avatarLines(pet, calm) {
     const quick = D.QUICK[pet.species] || D.QUICK.other;
     const mine = db.logs.filter((l) => l.petId === pet.id);
@@ -1038,6 +1109,7 @@
 
     html += '<section class="card"><h2>🪪 もしもカード・受診の記録・健康手帳</h2><div class="form-actions"><button type="button" class="btn ghost block" data-nav="card">もしもカード</button><button type="button" class="btn ghost block" data-nav="book">📘 健康手帳</button><button type="button" class="btn ghost block" data-nav="visits">受診の記録</button></div></section>';
     html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
+    html += '<section class="card"><h2>🔊 音と振動</h2><label class="check-row"><input type="checkbox" data-action-change="toggleSound"' + (soundOn() ? ' checked' : '') + '><span>記録したときに短い音を鳴らす</span></label><label class="check-row"><input type="checkbox" data-action-change="toggleHaptic"' + (hapticOn() ? ' checked' : '') + '><span>記録したときに軽く振動する</span></label><p class="muted small">音はマナーモードでは鳴らないことがあります。振動はAndroidと、iPhone（iOS 18以降）で使えます。</p></section>';
     html += '<section class="card"><h2>🔔 毎日のお知らせ</h2><p class="muted small">' + (db.settings.dailyTime ? '毎日' + esc(db.settings.dailyTime) + 'に登録しました（カレンダーのお知らせ）。' : '毎日決まった時間に、記録のお知らせをカレンダーから受け取れます。') + '</p><button type="button" class="btn ghost block" data-action="dailyReminder">' + (db.settings.dailyTime ? '時間を変えて登録しなおす' : 'お知らせを設定する') + '</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="exportJson">バックアップを書き出す（JSON）</button>' +
@@ -2698,9 +2770,10 @@
       if (!commit(() => { db.logs.push(log); })) return;
       combo = Date.now() - lastQuickAt < 120000 ? combo + 1 : 1;
       lastQuickAt = Date.now();
-      if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* 非対応 */ } }
+      if (cat !== 'ingest' && REACT[cat]) avReact = { petId: pet.id, text: REACT[cat], until: Date.now() + 5000 };
+      if (cat !== 'ingest') { M.sound(combo > 1 ? 'combo' : 'tick', soundOn()); if (hapticOn()) M.haptic(combo > 1 ? 'combo' : 'success'); }
       rerender();
-      if (cat !== 'ingest') M.pop(document.querySelector('.quick-btn[data-cat="' + cat + '"]'), combo > 1 ? 'コンボ×' + combo : '+1');
+      if (cat !== 'ingest') M.pop(el.classList.contains('care-row') ? document.querySelector('.care-row[data-cat="' + cat + '"]') : document.querySelector('.quick-btn[data-cat="' + cat + '"]'), combo > 1 ? 'コンボ×' + combo : '+1');
       if (cat !== 'ingest' && !wasPerfect && dailyState(pet).perfect && !homeDangerBanner(pet)) { setTimeout(() => celebratePerfect(pet), 450); return; }
       if (cat === 'ingest') {
         openIngestSheet(log);
@@ -2807,6 +2880,10 @@
     editCare: (el) => { const c = db.care.find((x) => x.id === el.dataset.id); if (c) openSheet('ワクチン・予防・健康診断の記録', careFormHtml(c)); },
     deleteCare: (el) => { if (!confirm('この記録を削除しますか？')) return; if (commit(() => { db.care = db.care.filter((c) => c.id !== el.dataset.id); })) { closeSheet(); rerender(); } },
     dailyReminder: () => openDailyReminder(),
+    editDaily: () => { const p = activePet(); if (p) openSheet('今日のお世話の項目', editDailyHtml(p)); },
+    resetDaily: () => { const p = activePet(); if (p && commit(() => { delete p.daily; })) { closeSheet(); rerender(); } },
+    toggleHaptic: () => { if (commit(() => { db.settings.haptic = hapticOn() ? 'off' : 'on'; })) { rerender(); if (hapticOn()) M.haptic('success'); } },
+    toggleSound: () => { if (commit(() => { db.settings.sound = soundOn() ? 'off' : 'on'; })) { rerender(); if (soundOn()) M.sound('tick', true); } },
     dailyIcs: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); downloadIcs(dailyReminderObj(t)); },
     dailyGoogle: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); window.open(googleCalendarUrl(dailyReminderObj(t)), '_blank', 'noopener'); },
     petTap: (el) => {
@@ -2819,6 +2896,7 @@
       const useful = avatarLines(pet, false);
       if (b) b.textContent = avLineIdx % 2 ? A.TAP[Math.floor(Math.random() * A.TAP.length)] : useful[(avLineIdx / 2) % useful.length];
       el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
+      M.sound('tap', soundOn()); if (hapticOn()) M.haptic('light');
       const h = document.createElement('span'); h.className = 'heart'; h.textContent = '❤'; h.setAttribute('aria-hidden', 'true');
       el.appendChild(h); setTimeout(() => h.remove(), 1000);
     },
@@ -2913,6 +2991,13 @@
     else if (type === 'visit') saveVisitForm(form);
     else if (type === 'handoff') createHandoff(form);
     else if (type === 'care') saveCareForm(form);
+    else if (type === 'daily') {
+      const p = activePet(); if (!p) return;
+      const q = D.QUICK[p.species] || D.QUICK.other;
+      const picked = q.filter((c) => form.querySelector('[name="d_' + c + '"]') && form.querySelector('[name="d_' + c + '"]').checked);
+      if (!picked.length || picked.length > 6) return showFormError(form.querySelector('.form-error'), '1〜6こ選んでください。');
+      if (commit(() => { p.daily = picked; })) { closeSheet(); toast('今日のお世話の項目を変えました'); rerender(); }
+    }
     else if (type === 'hospital') {
       const f = new FormData(form);
       const data = { name: String(f.get('name') || '').trim(), phone: String(f.get('phone') || '').trim(), note: String(f.get('note') || '').trim() };
@@ -2980,6 +3065,8 @@
       el.form.querySelector('.weight-field').hidden = el.value !== 'weight';
       return;
     }
+    if (el.dataset.actionChange === 'toggleSound') { actions.toggleSound(); return; }
+    if (el.dataset.actionChange === 'toggleHaptic') { actions.toggleHaptic(); return; }
     if (el.dataset.actionChange === 'importJson') {
       importJson(el.files && el.files[0]);
       el.value = '';

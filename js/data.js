@@ -62,9 +62,9 @@ window.PAWCARE_DATA = (function () {
 
   /* ホームのワンタップ記録に並べるカテゴリ（犬・猫に合わせた順番） */
   var QUICK = {
-    dog: ['food', 'water', 'walk', 'stool', 'urine', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest'],
-    cat: ['food', 'water', 'urine', 'stool', 'vomit', 'regurgitate', 'medicine', 'weight', 'ingest', 'other'],
-    rabbit: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'ingest', 'other'],
+    dog: ['food', 'water', 'walk', 'stool', 'urine', 'vomit', 'regurgitate', 'medicine', 'weight', 'groom', 'ingest'],
+    cat: ['food', 'water', 'urine', 'stool', 'vomit', 'regurgitate', 'medicine', 'weight', 'groom', 'ingest', 'other'],
+    rabbit: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'groom', 'ingest', 'other'],
     hamster: ['food', 'water', 'stool', 'urine', 'medicine', 'weight', 'tank', 'other'],
     bird: ['food', 'water', 'stool', 'regurgitate', 'medicine', 'weight', 'tank', 'other'],
     reptile: ['food', 'water', 'stool', 'shed', 'temp', 'weight', 'medicine', 'tank', 'other'],
@@ -134,6 +134,7 @@ window.PAWCARE_DATA = (function () {
     { id: 'medicine', label: '服薬', emoji: '💊', color: '#e06c9f' },
     { id: 'weight', label: '体重', emoji: '⚖️', color: '#5a7bd6' },
     { id: 'ingest', label: '誤食の疑い', emoji: '⚠️', color: '#d23f3f' },
+    { id: 'groom', label: 'ブラッシング', emoji: '🧼', color: '#c08a5a' },
     { id: 'shed', label: '脱皮', emoji: '✨', color: '#9a7bd6' },
     { id: 'temp', label: '温度・湿度', emoji: '🌡️', color: '#e07a3d' },
     { id: 'tank', label: '掃除・水換え', emoji: '🫧', color: '#3da3c4' },
