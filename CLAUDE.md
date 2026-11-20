@@ -1,4 +1,6 @@
-# PAWCARE — Claude Code向けの作業ルール
+# ことぽすと（開発名 PAWCARE）— Claude Code向けの作業ルール
+
+> **最初に `docs/HANDOFF.md`（引き継ぎメモ）と `docs/team/README.md`（ことぽすとチーム）を読むこと。**
 
 ペットの健康記録Webアプリ（PWA）。サーバーなしで GitHub Pages から配信し、データは端末のブラウザ（localStorage `pawcare.v1`）にだけ保存する。
 オーナーはプログラマーではないので、**報告は日本語で、専門用語を避けて**書く。
