@@ -12,7 +12,7 @@
 ## 2. 止まっていること（優先順）
 | # | こと | 誰が | どうなったら進める |
 |---|---|---|---|
-| 1 | **kotopost.jp への切り替え** | Claude | オーナーが「切り替えて」と言ったら、ブランチ `switch/kotopost-jp` を main に取り込む（CNAME・OGP・README を変更済み）。取り込み後、オーナーに GitHub → Settings → Pages の「Enforce HTTPS」にチェックしてもらう。切り替えると旧アドレスの端末内データは見えなくなるので、記録のある人には事前にバックアップをお願いする。 |
+| 1 | ~~kotopost.jp への切り替え~~ **2026-11-20 完了**。残り：オーナーが「Enforce HTTPS」にチェック | Claude | オーナーが「切り替えて」と言ったら、ブランチ `switch/kotopost-jp` を main に取り込む（CNAME・OGP・README を変更済み）。取り込み後、オーナーに GitHub → Settings → Pages の「Enforce HTTPS」にチェックしてもらう。切り替えると旧アドレスの端末内データは見えなくなるので、記録のある人には事前にバックアップをお願いする。 |
 | 2 | **ログイン（任意）とクラウド保存** | オーナー→Claude | オーナーが Firebase（kotopost.jp@gmail.com、2段階認証済み）でプロジェクト **kotopost**（k始まり）を作り、Authentication（Google・メールリンク）、承認済みドメインに kotopost.jp、Firestore（asia-northeast1・本番モード）、ウェブアプリ登録をして `firebaseConfig` を渡す。※誤って作られた「cotopost」は使わない。※会社系のGoogleアカウントでは組織ポリシーで作れなかった。 |
 | 3 | 外平先生の確認 | オーナー | 緊急時の追加（食べてはいけないもの・見逃したくない様子・病院に着くまで）は下書き表示中（`js/data.js` の `EMERGENCY_REVIEWED=false`）。先生は来週以降に確認予定。 |
 | 4 | 利用規約・プライバシーポリシー | Claude | 運営者の表示名（個人名か屋号か）と連絡先（kotopost.jp@gmail.com）で作る。ログインを入れるなら個人情報の扱いを必ず書く。**住所など個人情報はリポジトリに書かない（公開リポジトリ）**。 |
