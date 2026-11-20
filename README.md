@@ -4,7 +4,7 @@
 
 ペットの毎日の健康記録と、体調不良・緊急時に動物病院へ伝える問診メモを整理するWebアプリです。
 
-- 公開URL: https://hidewaysunsetcamp-design.github.io/pawcare-demo/
+- 公開URL: https://kotopost.jp/ （旧: https://hidewaysunsetcamp-design.github.io/pawcare-demo/ から自動で転送）
 - 対応: iPhone Safari / Android Chrome（PCブラウザでも動作）
 - 構成: 静的HTML + CSS + JavaScript（ビルド不要・サーバーなし）。外部ライブラリはQRコード生成のみ同梱（`js/vendor/qrcode.js`、下記「サードパーティライセンス」）
 - 利用者向けガイド: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)／設計判断の記録: [docs/DECISIONS.md](docs/DECISIONS.md)
