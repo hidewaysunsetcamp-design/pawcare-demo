@@ -1,0 +1,23 @@
+{
+  "updated_at": "2026-11-22T18:53:49+00:00",
+  "total": 2517,
+  "added": 2517,
+  "reusable_text": 1409,
+  "by_species": {
+    "rabbit": 391,
+    "dog": 1618,
+    "cat": 1614,
+    "hamster": 200,
+    "other": 200,
+    "bird": 200
+  },
+  "by_license": {
+    "unknown": 297,
+    "cc by-nc-nd": 418,
+    "cc by": 1427,
+    "cc by-nc": 365,
+    "cc by-nd": 2,
+    "cc0": 4,
+    "cc by-nc-sa": 4
+  }
+}
