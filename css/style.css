@@ -816,3 +816,8 @@ input.haptic-input { -webkit-appearance: auto; appearance: auto; }
 .stage.finch .stage-name { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .stage.finch .stage-name p { margin: 0 0 6px; }
 .stage.finch .bubble { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* v1.17 研究・開発への協力（任意） */
+.research-points { padding-left: 1.2em; margin: .4em 0 .8em; }
+.research-points li { margin: .25em 0; }
+.research-when { color: var(--muted, #666); margin-top: .2em; }

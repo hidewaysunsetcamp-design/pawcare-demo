@@ -1106,6 +1106,21 @@ def run_v11(device_name):
         page.click('label:has(input[data-action-change=toggleHaptic])'); page.wait_for_timeout(120)
         st = get_db(page)['settings']
         check(f'[{tag}] 音と振動をオフにできる', st.get('sound') == 'off' and st.get('haptic') == 'off', str({k: st.get(k) for k in ['sound', 'haptic']}))
+        # v1.17 研究・開発への協力（任意・最初はオフ）
+        rc = page.locator('.research-card')
+        check(f'[{tag}] 研究への協力：設定に説明があり最初はオフ', rc.count() == 1 and not page.is_checked('input[data-action-change=toggleResearch]') and (st.get('research') or {}).get('agreed') is not True and '端末の外に出ません' in rc.inner_text() and '売ったり渡したりしません' in rc.inner_text())
+        page.click('label:has(input[data-action-change=toggleResearch])'); page.wait_for_timeout(150)
+        r = get_db(page)['settings'].get('research') or {}
+        check(f'[{tag}] 研究への協力：同意すると日付と版が残る', r.get('agreed') is True and r.get('v') == 1 and bool(r.get('at')) and page.locator('.research-when').count() == 1, str(r))
+        page.reload(); wait_rendered(page)
+        check(f'[{tag}] 研究への協力：読み込み直しても同意が残る', page.is_checked('input[data-action-change=toggleResearch]'))
+        page.click('label:has(input[data-action-change=toggleResearch])'); page.wait_for_timeout(150)
+        r = get_db(page)['settings'].get('research') or {}
+        check(f'[{tag}] 研究への協力：いつでもやめられる', r.get('agreed') is False and r.get('at') is None, str(r))
+        page.evaluate("() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); d.settings.research = { agreed: true, at: 'x', v: 99 }; localStorage.setItem('pawcare.v1', JSON.stringify(d)); }")
+        page.reload(); wait_rendered(page)
+        check(f'[{tag}] 研究への協力：版が違う・おかしい同意は無効になる', not page.is_checked('input[data-action-change=toggleResearch]'))
+        hide_toast(page)
 
         # ---------- v1.14.1 緊急時はお祝いを出さない・電話を最初に ----------
         page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); const p = d.pets.find(x => x.id === d.settings.activePetId); p.daily = ['food'];

@@ -3,7 +3,8 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.16.0';
+  const APP_VERSION = '1.17.0';
+  const RESEARCH_TERMS_V = 1; // 研究・開発への協力の説明文の版。文を変えたら上げる（同意はやり直し）
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -109,6 +110,8 @@
     base.settings.dailyTime = /^\d\d:\d\d$/.test(s.dailyTime || '') ? s.dailyTime : '';
     base.settings.sound = s.sound === 'off' ? 'off' : 'on';
     base.settings.haptic = s.haptic === 'off' ? 'off' : 'on';
+    const rc = s.research || {};
+    base.settings.research = (rc.agreed === true && rc.v === RESEARCH_TERMS_V && typeof rc.at === 'string' && !isNaN(Date.parse(rc.at))) ? { agreed: true, at: rc.at, v: RESEARCH_TERMS_V } : { agreed: false, at: null, v: RESEARCH_TERMS_V };
     base.settings.owner = Object.assign(base.settings.owner, s.owner || {});
     base.settings.backupContact = Object.assign(base.settings.backupContact, s.backupContact || {});
     if (raw.game && Array.isArray(raw.game.medals)) base.game = { medals: raw.game.medals.filter((x) => typeof x === 'string').slice(0, 50), lv: Math.max(1, +raw.game.lv || 1) };
@@ -523,6 +526,21 @@
   let avReact = null;
   function soundOn() { return db.settings.sound !== 'off'; }
   function hapticOn() { return db.settings.haptic !== 'off'; }
+  function researchAgreed() { const r = db.settings.research; return !!(r && r.agreed && r.v === RESEARCH_TERMS_V); }
+  function researchCardHtml() {
+    const r = db.settings.research || {};
+    const when = researchAgreed() && r.at ? '<p class="small research-when">同意した日：' + esc(new Date(r.at).toLocaleDateString('ja-JP')) + '</p>' : '';
+    return '<section class="card research-card"><h2>🔬 研究・開発への協力（任意）</h2>' +
+      '<p class="small">ことぽすとは将来、同意してくださった方の記録を、ペットの医療の研究とアプリの改良に役立てたいと考えています。</p>' +
+      '<ul class="small research-points">' +
+      '<li>いまは、記録はこの端末の外に出ません。集め始めるのは、ログイン機能ができて、あなたがそれを使い始めてからです。</li>' +
+      '<li>使うのは、名前・住所・電話番号などを外し、だれのペットかわからない形にした記録だけです。</li>' +
+      '<li>一頭ずつの記録や、あなたがわかる情報を、ほかの会社に売ったり渡したりしません。外に出すのは、たくさんの記録をまとめた統計だけです。</li>' +
+      '<li>同意しなくても、すべての機能をこれまでどおり使えます。いつでもここでやめられます。</li>' +
+      '</ul>' +
+      '<label class="check-row"><input type="checkbox" data-action-change="toggleResearch"' + (researchAgreed() ? ' checked' : '') + '><span>研究・開発への協力に同意する</span></label>' + when +
+      '<p class="muted small">説明の内容を変えるときは、あらためて同意をお願いします。</p></section>';
+  }
   M.hapticOn = hapticOn;
   const REACT = { food: 'ごはん、おいしかった！', water: 'お水ごくごく、ありがとう！', walk: 'お散歩たのしかった〜！', stool: 'すっきり！ 記録ありがと', urine: 'トイレ、ちゃんとできたよ', groom: 'ブラッシング、きもちいい〜', temp: 'ちょうどいい温度だね', tank: 'おへやピカピカ！', medicine: 'おくすり、がんばった！', shed: 'ぬぎぬぎできたよ', weight: '体重はかってくれてありがと' };
   function avatarLines(pet, calm) {
@@ -1155,6 +1173,7 @@
     html += '<section class="card"><h2>🪪 もしもカード・受診の記録・健康手帳</h2><div class="form-actions"><button type="button" class="btn ghost block" data-nav="card">もしもカード</button><button type="button" class="btn ghost block" data-nav="book">📘 健康手帳</button><button type="button" class="btn ghost block" data-nav="visits">受診の記録</button></div></section>';
     html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
     html += '<section class="card"><h2>🔊 音と振動</h2><label class="check-row"><input type="checkbox" data-action-change="toggleSound"' + (soundOn() ? ' checked' : '') + '><span>記録したときに短い音を鳴らす</span></label><label class="check-row"><input type="checkbox" data-action-change="toggleHaptic"' + (hapticOn() ? ' checked' : '') + '><span>記録したときに軽く振動する</span></label><p class="muted small">音はマナーモードでは鳴らないことがあります。振動はAndroidと、iPhone（iOS 18以降）で使えます。</p></section>';
+    html += researchCardHtml();
     html += '<section class="card"><h2>🔔 毎日のお知らせ</h2><p class="muted small">' + (db.settings.dailyTime ? '毎日' + esc(db.settings.dailyTime) + 'に登録しました（カレンダーのお知らせ）。' : '毎日決まった時間に、記録のお知らせをカレンダーから受け取れます。') + '</p><button type="button" class="btn ghost block" data-action="dailyReminder">' + (db.settings.dailyTime ? '時間を変えて登録しなおす' : 'お知らせを設定する') + '</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="exportJson">バックアップを書き出す（JSON）</button>' +
@@ -2930,6 +2949,7 @@
     dailyReminder: () => openDailyReminder(),
     editDaily: () => { const p = activePet(); if (p) openSheet('今日のお世話の項目', editDailyHtml(p)); },
     resetDaily: () => { const p = activePet(); if (p && commit(() => { delete p.daily; })) { closeSheet(); rerender(); } },
+    toggleResearch: () => { if (commit(() => { db.settings.research = researchAgreed() ? { agreed: false, at: null, v: RESEARCH_TERMS_V } : { agreed: true, at: new Date().toISOString(), v: RESEARCH_TERMS_V }; })) { rerender(); toast(researchAgreed() ? 'ご協力ありがとうございます。いつでもやめられます。' : '協力をやめました。'); } },
     toggleHaptic: () => { if (commit(() => { db.settings.haptic = hapticOn() ? 'off' : 'on'; })) { rerender(); if (hapticOn()) M.haptic('success'); } },
     toggleSound: () => { if (commit(() => { db.settings.sound = soundOn() ? 'off' : 'on'; })) { rerender(); if (soundOn()) M.sound('tick', true); } },
     dailyIcs: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); downloadIcs(dailyReminderObj(t)); },
@@ -3115,6 +3135,7 @@
     }
     if (el.dataset.actionChange === 'toggleSound') { actions.toggleSound(); return; }
     if (el.dataset.actionChange === 'toggleHaptic') { actions.toggleHaptic(); return; }
+    if (el.dataset.actionChange === 'toggleResearch') { actions.toggleResearch(); return; }
     if (el.dataset.actionChange === 'importJson') {
       importJson(el.files && el.files[0]);
       el.value = '';
