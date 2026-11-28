@@ -3,7 +3,7 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.17.0';
+  const APP_VERSION = '1.18.0';
   const RESEARCH_TERMS_V = 1; // 研究・開発への協力の説明文の版。文を変えたら上げる（同意はやり直し）
   const STORAGE_KEY = 'pawcare.v1';
 
@@ -1293,7 +1293,7 @@
     const pet = getPet(r.petId);
     const badge = st === 'overdue' ? '<span class="tag">予定日を過ぎています</span>' : st === 'today' ? '<span class="tag warn">今日</span>' : st === 'done' ? '<span class="tag">完了</span>' : '';
     return '<li class="rem-item rem-' + st + '"><button type="button" class="log-item" data-action="editReminder" data-id="' + esc(r.id) + '">' +
-      '<span class="log-dot" style="--c:#1f7a68" aria-hidden="true">' + t.emoji + '</span>' +
+      '<span class="log-dot" style="--c:#C04E0C" aria-hidden="true">' + t.emoji + '</span>' +
       '<span class="log-main"><span class="log-cat">' + esc(r.title || t.label) + ' ' + badge + '</span>' +
       '<span class="log-memo">' + esc(fmtDateTime(r.dueAt)) + (r.repeat !== 'none' ? '・' + esc(repeatLabel(r.repeat)) : '') + (showPet && pet ? '・' + esc(pet.name) : '') + '</span></span>' +
       '<span class="chev" aria-hidden="true">›</span></button>' +
@@ -2076,7 +2076,7 @@
     const H = 220 + body.reduce((a, b) => a + b[1].length * lh + 12, 0) + 120;
     cv.width = W; cv.height = H;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#1f7a68'; ctx.fillRect(0, 0, W, 150);
+    ctx.fillStyle = '#C04E0C'; ctx.fillRect(0, 0, W, 150);
     ctx.fillStyle = '#ffffff'; ctx.font = font(34, true); ctx.fillText('もしもカード（ことぽすと）', pad, 62);
     ctx.font = font(52, true); ctx.fillText(c.name, pad, 125);
     let y = 210;
@@ -2726,7 +2726,7 @@
         c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
         c.font = 'bold 50px ' + font; c.fillStyle = '#5b6b67';
         c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
-        c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('ことぽすと', W / 2, 1270);
+        c.font = 'bold 40px ' + font; c.fillStyle = '#C04E0C'; c.fillText('ことぽすと', W / 2, 1270);
         cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
       }).catch(() => reject(new Error('画像を作れませんでした')));
     });

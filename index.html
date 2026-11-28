@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ことぽすと｜うちの子の“いつも”を、先生へ。</title>
   <meta name="description" content="ペットの毎日の健康記録と、体調不良・緊急時に動物病院へ伝える問診メモを整理するアプリ（デモ版）。">
-  <meta name="theme-color" content="#1f7a68">
+  <meta name="theme-color" content="#E36D14">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ことぽすと">
   <meta property="og:title" content="ことぽすと｜うちの子の“いつも”を、先生へ。">
@@ -28,6 +28,35 @@
   <noscript>
     <p class="noscript">ことぽすとを利用するにはJavaScriptを有効にしてください。</p>
   </noscript>
+
+  <div id="splash" class="splash" aria-hidden="true">
+    <div class="splash-in">
+      <svg class="splash-mark" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="#fff"/>
+        <ellipse class="toe" cx="35" cy="50" rx="9" ry="12" transform="rotate(-20 35 50)"/>
+        <ellipse class="toe" cx="51" cy="35" rx="9" ry="12" transform="rotate(-6 51 35)"/>
+        <ellipse class="toe" cx="69" cy="35" rx="9" ry="12" transform="rotate(6 69 35)"/>
+        <ellipse class="toe" cx="85" cy="50" rx="9" ry="12" transform="rotate(20 85 50)"/>
+        <path class="pad" d="M60 58c-14 0-27 14-27 26 0 9 7 13 15 11 5-1 8-3 12-3s7 2 12 3c8 2 15-2 15-11 0-12-13-26-27-26z"/>
+      </svg>
+      <p class="splash-name"><span>こ</span><span>と</span><span>ぽ</span><span>す</span><span>と</span></p>
+      <p class="splash-tag">うちの子の“いつも”を、先生へ。</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var s = document.getElementById('splash');
+      function drop() { if (s && s.parentNode) s.parentNode.removeChild(s); }
+      try {
+        var calm = /^#\/(emergency|interview|card|view)/.test(location.hash);
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (calm || reduce || sessionStorage.getItem('kp.splash')) { drop(); return; }
+        sessionStorage.setItem('kp.splash', '1');
+      } catch (e) {}
+      s.addEventListener('click', drop);
+      setTimeout(drop, 1900);
+    })();
+  </script>
 
   <header class="app-header">
     <div class="brand">

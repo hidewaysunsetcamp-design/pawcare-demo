@@ -9,6 +9,15 @@ import re
 import os
 import sys
 from playwright.sync_api import sync_playwright
+from playwright.sync_api import Browser
+
+# 起動画面（v1.18）は1回の起動につき1度だけ。ふつうのテストでは出ないようにしておき、専用のテストで確かめる
+_orig_new_context = Browser.new_context
+def _ctx_without_splash(self, *a, **k):
+    c = _orig_new_context(self, *a, **k)
+    c.add_init_script("try { sessionStorage.setItem('kp.splash', '1'); } catch (e) {}")
+    return c
+Browser.new_context = _ctx_without_splash
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8765/'
 SHOT = os.environ.get('SHOT_DIR', '/tmp/pawcare-shots')
@@ -1149,6 +1158,26 @@ def run_v11(device_name):
         check(f'[{tag}] 猫（男の子）には血栓症・尿閉、胃拡張は出ない', '急に後ろ足' in g and 'おしっこが出ない' in g and '吐こうとしても吐けない' not in g and '避妊していない' not in g)
         check(f'[{tag}] 緊急時の追加に動き・お祝いがない', dp.locator('.confetti, #celebrate').count() == 0)
         dctx.close()
+        # v1.18 起動画面とオレンジの配色
+        sctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo'); sp = sctx.new_page()
+        sp.goto(URL + '#/home'); sp.wait_for_timeout(300)
+        check(f'[{tag}] 起動画面に「ことぽすと」が出る', sp.locator('#splash').count() == 1 and sp.inner_text('.splash-name').replace('\n', '') == 'ことぽすと')
+        sp.wait_for_timeout(2000)
+        check(f'[{tag}] 起動画面は2秒以内に消える', sp.locator('#splash').count() == 0)
+        sp.reload(); sp.wait_for_timeout(200)
+        check(f'[{tag}] 起動画面は同じ起動中に二度出ない', sp.locator('#splash').count() == 0)
+        sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/home'); sp.reload(); sp.wait_for_timeout(200)
+        sp.locator('#splash').click(); sp.wait_for_timeout(100)
+        check(f'[{tag}] 起動画面はタップで飛ばせる', sp.locator('#splash').count() == 0)
+        sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/emergency'); sp.reload(); sp.wait_for_timeout(100)
+        check(f'[{tag}] 緊急時の画面を直接開いたときは起動画面を出さない', sp.locator('#splash').count() == 0)
+        hdr = sp.evaluate("getComputedStyle(document.querySelector('.app-header')).backgroundColor")
+        check(f'[{tag}] ヘッダーがオレンジ', hdr == 'rgb(227, 109, 20)', hdr)
+        sctx.close()
+        rctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo', reduced_motion='reduce'); rp = rctx.new_page()
+        rp.goto(URL + '#/home'); rp.wait_for_timeout(100)
+        check(f'[{tag}] 動きを減らす設定では起動画面を出さない', rp.locator('#splash').count() == 0)
+        rctx.close()
         check(f'[{tag}] v1.1 JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 
