@@ -408,15 +408,6 @@
     });
     return n;
   }
-  function dailyBarHtml(pet) {
-    const st = dailyState(pet);
-    if (!st.goal.length) return '';
-    const pct = Math.round(st.done.length / st.goal.length * 100);
-    return '<div class="daily' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '💯 今日のお世話 パーフェクト！' : '今日のお世話') + '</strong>' +
-      '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
-      '<div class="progress big" role="progressbar" aria-label="今日のお世話の進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + pct + '%"></span></div>' +
-      (st.perfect ? '' : '<p class="small muted">あと' + st.left + 'つ：' + esc(st.goal.filter((c) => st.done.indexOf(c) < 0).map((c) => categoryOf(c).label).join('・')) + '</p>') + '</div>';
-  }
   /* 今日のお世話の一覧（ステージの中）。行をタップするとそのまま記録できる */
   function careListHtml(pet) {
     const st = dailyState(pet);
@@ -1311,17 +1302,6 @@
   }
   function sortedReminders(list) {
     return list.slice().sort((a, b) => (a.done - b.done) || (a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : 0));
-  }
-  function homeRemindersHtml(pet) {
-    const list = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done));
-    const due = list.filter((r) => reminderStatus(r) !== 'upcoming');
-    let html = '<section class="card"><div class="row-between"><h2>⏰ 予定' + (due.length ? ' <span class="tag warn">' + due.length + '</span>' : '') + '</h2><button type="button" class="link" data-nav="reminders">すべて見る</button></div>';
-    if (!list.length) {
-      html += '<p class="muted small">ワクチン・服薬・予防薬などの予定を登録すると、ここに表示されます。</p><button type="button" class="btn ghost block" data-action="newReminder">＋ 予定を追加</button>';
-    } else {
-      html += '<ul class="log-list">' + list.slice(0, 3).map((r) => reminderItemHtml(r, false)).join('') + '</ul>';
-    }
-    return html + '</section>';
   }
   function renderReminders() {
     let html = '<div class="row-between"><h1 class="page-title">予定・リマインダー</h1><button type="button" class="btn primary small" data-action="newReminder">＋ 予定</button></div>';
@@ -2651,14 +2631,6 @@
   function petLine(pet) {
     const i = (new Date().getDate() + pet.name.length) % PET_LINES.length;
     return PET_LINES[i];
-  }
-  function gameBarHtml(pet) {
-    const g = gameStats();
-    const L = levelOf(g.exp);
-    const pct = Math.round(L.cur / L.need * 100);
-    return '<button type="button" class="card game-bar" data-nav="game"><span class="gb-lv">Lv.' + L.lv + '</span><span class="gb-main"><span class="gb-title">' + esc(L.title) + (g.streak.current ? '　<span class="gb-streak">🔥' + g.streak.current + '日連続</span>' : '') + '</span>' +
-      '<span class="gb-track" role="progressbar" aria-valuemin="0" aria-valuemax="' + L.need + '" aria-valuenow="' + L.cur + '"><span style="width:' + pct + '%"></span></span><span class="gb-exp">' + L.cur + ' / ' + L.need + ' EXP</span></span>' +
-      '<span class="gb-say">' + speciesOf(pet.species).emoji + '「' + esc(petLine(pet)) + '」</span></button>';
   }
   function renderGame() {
     const g = gameStats();
