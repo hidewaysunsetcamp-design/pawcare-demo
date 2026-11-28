@@ -43,7 +43,7 @@
     var a = (pet && pet.avatar) || {};
     return {
       look: find(LOOKS[sp], a.look, 'base').id, acc: find(ACCS, a.acc, DEFAULT_ACC[sp]).id,
-      accColor: find(COLORS, a.accColor, 'pink').id, bg: find(BG, a.bg, 'sky').id
+      accColor: find(COLORS, a.accColor, 'pink').id, bg: find(BG, a.bg, 'sunset').id
     };
   }
   function look(pet) { var s = settings(pet); return find(LOOKS[spOf(pet)], s.look); }

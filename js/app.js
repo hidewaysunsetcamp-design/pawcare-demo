@@ -3,7 +3,8 @@
 
 (function () {
   const D = window.PAWCARE_DATA;
-  const APP_VERSION = '1.16.0';
+  const APP_VERSION = '1.18.0';
+  const RESEARCH_TERMS_V = 1; // 研究・開発への協力の説明文の版。文を変えたら上げる（同意はやり直し）
   const STORAGE_KEY = 'pawcare.v1';
 
   /* ============================================================
@@ -109,6 +110,8 @@
     base.settings.dailyTime = /^\d\d:\d\d$/.test(s.dailyTime || '') ? s.dailyTime : '';
     base.settings.sound = s.sound === 'off' ? 'off' : 'on';
     base.settings.haptic = s.haptic === 'off' ? 'off' : 'on';
+    const rc = s.research || {};
+    base.settings.research = (rc.agreed === true && rc.v === RESEARCH_TERMS_V && typeof rc.at === 'string' && !isNaN(Date.parse(rc.at))) ? { agreed: true, at: rc.at, v: RESEARCH_TERMS_V } : { agreed: false, at: null, v: RESEARCH_TERMS_V };
     base.settings.owner = Object.assign(base.settings.owner, s.owner || {});
     base.settings.backupContact = Object.assign(base.settings.backupContact, s.backupContact || {});
     if (raw.game && Array.isArray(raw.game.medals)) base.game = { medals: raw.game.medals.filter((x) => typeof x === 'string').slice(0, 50), lv: Math.max(1, +raw.game.lv || 1) };
@@ -283,6 +286,16 @@
     if (v.indexOf('import/') === 0) return 'import';
     return VIEWS.indexOf(v) >= 0 ? v : 'home';
   }
+  /* 画面を描いたあとの小さな仕掛け（電話の帯の出し入れなど） */
+  let dockObserver = null;
+  function afterRender() {
+    if (dockObserver) { dockObserver.disconnect(); dockObserver = null; }
+    const dock = document.getElementById('callDock'), top = document.querySelector('.call-first');
+    if (dock && top && 'IntersectionObserver' in window) {
+      dockObserver = new IntersectionObserver((es) => { dock.classList.toggle('show', !es[0].isIntersecting); });
+      dockObserver.observe(top);
+    } else if (dock) dock.classList.add('show');
+  }
   function render() {
     /* デモ用リンク（#/demo）：まだデータがない端末ではサンプルデータを入れてホームを開く */
     if ((location.hash || '').replace(/^#\/?/, '') === 'demo') {
@@ -303,6 +316,7 @@
     else if (currentView !== lastView) { const c = document.getElementById('celebrate'); if (c) c.remove(); document.querySelectorAll('.confetti').forEach((x) => x.remove()); }
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
+    afterRender();
     if (currentView !== lastView && currentView !== 'emergency' && !isRerender) M.enter($app);
     lastView = currentView;
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
@@ -357,6 +371,11 @@
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '"' + (ds.goal.indexOf(c.id) >= 0 ? ' data-goal="' + (ds.done.indexOf(c.id) >= 0 ? 'done' : 'todo') + '"' : '') + ' style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
+    /* そのほかの機能（体調が気になる・もしもカードなど）は、スクロールしすぎずに届く位置に */
+    const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
+      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['guide', '📗', '飼い方']];
+    html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
+    html += stickerBookHtml(pet);
     html += weekMapHtml(pet);
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
     const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))));
@@ -372,10 +391,6 @@
     html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><button type="button" class="link" data-nav="logs">すべて見る</button></div>';
     html += today.length ? '<ul class="log-list">' + today.slice(0, 3).map((l) => logItemHtml(l, false, true)).join('') + '</ul>' + (today.length > 3 ? '<button type="button" class="link" data-nav="logs">ほか' + (today.length - 3) + '件</button>' : '') : '<p class="empty">今日の記録はまだありません。</p>';
     html += '</section>';
-    /* 6. そのほかの機能はアイコンのタイルにまとめる */
-    const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
-      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['guide', '📗', '飼い方']];
-    html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
     html += adSlotHtml('home');
     return html + localNotice;
   }
@@ -405,15 +420,6 @@
     });
     return n;
   }
-  function dailyBarHtml(pet) {
-    const st = dailyState(pet);
-    if (!st.goal.length) return '';
-    const pct = Math.round(st.done.length / st.goal.length * 100);
-    return '<div class="daily' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '💯 今日のお世話 パーフェクト！' : '今日のお世話') + '</strong>' +
-      '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
-      '<div class="progress big" role="progressbar" aria-label="今日のお世話の進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + pct + '%"></span></div>' +
-      (st.perfect ? '' : '<p class="small muted">あと' + st.left + 'つ：' + esc(st.goal.filter((c) => st.done.indexOf(c) < 0).map((c) => categoryOf(c).label).join('・')) + '</p>') + '</div>';
-  }
   /* 今日のお世話の一覧（ステージの中）。行をタップするとそのまま記録できる */
   function careListHtml(pet) {
     const st = dailyState(pet);
@@ -422,13 +428,26 @@
     const lastToday = (c) => logsSorted(db.logs.filter((l) => l.petId === pet.id && l.category === c && l.datetime.slice(0, 10) === t))[0];
     return '<div class="care' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '🐾 今日のお世話 パーフェクト！' : '今日のお世話') + '</strong>' +
       '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
-      '<div class="progress big" role="progressbar" aria-label="今日のお世話の進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + Math.round(st.done.length / st.goal.length * 100) + '%"></span></div>' +
+      gaugeHtml(st.done.length, st.goal.length) +
       '<ul class="care-list">' + st.goal.map((c) => {
         const cat = categoryOf(c), done = st.done.indexOf(c) >= 0, l = done ? lastToday(c) : null;
         return '<li><button type="button" class="care-row' + (done ? ' done' : '') + '" data-action="quick" data-cat="' + c + '"><span class="care-ic" aria-hidden="true">' + cat.emoji + '</span>' +
           '<span class="care-label">' + esc(cat.label) + (l ? '<small>' + esc(l.datetime.slice(11, 16)) + 'に記録</small>' : '') + '</span>' +
           '<span class="care-check" aria-label="' + (done ? '記録ずみ' : 'まだ') + '">' + (done ? '✓' : '') + '</span></button></li>';
       }).join('') + '</ul><button type="button" class="link small" data-action="editDaily">お世話の項目を変える</button></div>';
+  }
+  /* 達成度のメーター：半円に並んだ丸いバー（15本）。できた割合だけオレンジになる */
+  function gaugeHtml(done, total) {
+    const N = 15, pct = total ? Math.round(done / total * 100) : 0, on = Math.round(pct / 100 * N);
+    let segs = '';
+    for (let i = 0; i < N; i++) {
+      const a = 180 - (i * 180 / (N - 1));
+      const r = 78, x = 100 + r * Math.cos(a * Math.PI / 180), y = 98 - r * Math.sin(a * Math.PI / 180);
+      segs += '<rect class="g-seg' + (i < on ? ' on' : '') + '" style="--i:' + i + '" x="' + (x - 6).toFixed(1) + '" y="' + (y - 15).toFixed(1) + '" width="12" height="30" rx="6" transform="rotate(' + (90 - a).toFixed(1) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+    }
+    return '<div class="gauge" role="progressbar" aria-label="今日のお世話の達成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-valuetext="' + pct + '%（' + done + ' / ' + total + '）">' +
+      '<svg viewBox="0 0 200 112" aria-hidden="true">' + segs + '</svg>' +
+      '<div class="g-num"><strong>' + pct + '<small>%</small></strong><span>達成度</span></div></div>';
   }
   function editDailyHtml(pet) {
     const goal = dailyGoal(pet);
@@ -437,6 +456,32 @@
       '<div class="check-list">' + opts.map((c) => '<label class="check-row"><input type="checkbox" name="d_' + c + '"' + (goal.indexOf(c) >= 0 ? ' checked' : '') + '><span>' + categoryOf(c).emoji + ' ' + esc(categoryOf(c).label) + '</span></label>').join('') + '</div>' +
       '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">保存</button>' +
       '<button type="button" class="btn ghost block" data-action="resetDaily">おすすめに戻す</button></div></form>';
+  }
+  /* シール帳：記録した日にうちの子のシールが1枚。お世話を全部できた日は金のふち。今日のシールは初めて見たときだけ弾んで貼られる */
+  function stickerBookHtml(pet) {
+    const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+    const first = new Date(y, m - 1, 1), daysIn = new Date(y, m, 0).getDate(), pad = first.getDay();
+    const mine = new Set(db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 7) === t.slice(0, 7)).map((l) => l.datetime.slice(0, 10)));
+    const key = 'kp.sb.' + pet.id + '.' + t;
+    let pop = false;
+    if (mine.has(t) && celebrationAllowed(pet)) { try { pop = !sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) { pop = false; } }
+    let cells = '', count = 0, gold = 0;
+    for (let i = 0; i < pad; i++) cells += '<li class="sb-cell sb-pad' + ((i % 2) ? ' alt' : '') + '" aria-hidden="true"></li>';
+    for (let d = 1; d <= daysIn; d++) {
+      const ds = t.slice(0, 8) + String(d).padStart(2, '0'), idx = pad + d - 1;
+      const alt = ((Math.floor(idx / 7) + idx % 7) % 2) ? ' alt' : '';
+      if (mine.has(ds)) {
+        const perfect = dailyState(pet, ds).perfect; count++; if (perfect) gold++;
+        const tilt = ((d * 37) % 21) - 10;
+        cells += '<li class="sb-cell has' + alt + (perfect ? ' gold' : '') + (ds === t ? ' today' : '') + (ds === t && pop ? ' pop' : '') + '" aria-label="' + d + '日 シール' + (perfect ? '（金）' : '') + '"><span class="sb-sticker" style="--r:' + tilt + 'deg">' + window.PAWCARE_AVATAR.html(pet, { size: 34, static: true, label: '' }) + '</span></li>';
+      } else {
+        const future = ds > t;
+        cells += '<li class="sb-cell' + alt + (future ? ' future' : '') + (ds === t ? ' today' : '') + '" aria-label="' + d + '日' + (future ? '' : ' シールなし') + '">' + (ds === t ? '<button type="button" class="sb-today" data-action="newLog" aria-label="今日の記録をしてシールをもらう">きょう</button>' : '<span class="sb-day">' + d + '</span>') + '</li>';
+      }
+    }
+    return '<section class="card sticker-book"><div class="row-between"><h2>' + esc(pet.name) + 'のシール帳 ' + m + '月</h2><span class="sb-count">' + count + '枚</span></div>' +
+      '<p class="small muted">記録した日にシールが1枚。お世話を全部できた日は金のシールになります。' + (gold ? '今月の金のシール ' + gold + '枚。' : '') + '</p>' +
+      '<ol class="sb-grid">' + ['日', '月', '火', '水', '木', '金', '土'].map((w) => '<li class="sb-wd" aria-hidden="true">' + w + '</li>').join('') + cells + '</ol></section>';
   }
   /* Atomsのように、数字の下に「次に何をするか」が分かる短い一文。病気の判断はしない */
   function weekMapHtml(pet) {
@@ -523,6 +568,21 @@
   let avReact = null;
   function soundOn() { return db.settings.sound !== 'off'; }
   function hapticOn() { return db.settings.haptic !== 'off'; }
+  function researchAgreed() { const r = db.settings.research; return !!(r && r.agreed && r.v === RESEARCH_TERMS_V); }
+  function researchCardHtml() {
+    const r = db.settings.research || {};
+    const when = researchAgreed() && r.at ? '<p class="small research-when">同意した日：' + esc(new Date(r.at).toLocaleDateString('ja-JP')) + '</p>' : '';
+    return '<section class="card research-card"><h2>🔬 研究・開発への協力（任意）</h2>' +
+      '<p class="small">ことぽすとは将来、同意してくださった方の記録を、ペットの医療の研究とアプリの改良に役立てたいと考えています。</p>' +
+      '<ul class="small research-points">' +
+      '<li>いまは、記録はこの端末の外に出ません。集め始めるのは、ログイン機能ができて、あなたがそれを使い始めてからです。</li>' +
+      '<li>使うのは、名前・住所・電話番号などを外し、だれのペットかわからない形にした記録だけです。</li>' +
+      '<li>一頭ずつの記録や、あなたがわかる情報を、ほかの会社に売ったり渡したりしません。外に出すのは、たくさんの記録をまとめた統計だけです。</li>' +
+      '<li>同意しなくても、すべての機能をこれまでどおり使えます。いつでもここでやめられます。</li>' +
+      '</ul>' +
+      '<label class="check-row"><input type="checkbox" data-action-change="toggleResearch"' + (researchAgreed() ? ' checked' : '') + '><span>研究・開発への協力に同意する</span></label>' + when +
+      '<p class="muted small">説明の内容を変えるときは、あらためて同意をお願いします。</p></section>';
+  }
   M.hapticOn = hapticOn;
   const REACT = { food: 'ごはん、おいしかった！', water: 'お水ごくごく、ありがとう！', walk: 'お散歩たのしかった〜！', stool: 'すっきり！ 記録ありがと', urine: 'トイレ、ちゃんとできたよ', groom: 'ブラッシング、きもちいい〜', temp: 'ちょうどいい温度だね', tank: 'おへやピカピカ！', medicine: 'おくすり、がんばった！', shed: 'ぬぎぬぎできたよ', weight: '体重はかってくれてありがと' };
   function avatarLines(pet, calm) {
@@ -854,6 +914,7 @@
       case 0:
         html += '<p>症状を順番に入力すると、動物病院に伝えるための<strong>問診メモ</strong>を作成します。</p>' +
           '<p class="muted small">※このアプリは病気の診断や緊急度の判定は行いません。判断は必ず獣医師に相談してください。</p>' +
+          '<div class="form-actions iv-top"><button type="button" class="btn danger block" data-nav="emergency">いま苦しそう・ぐったり → 緊急時の案内へ</button></div>' +
           dangerSignsHtml() +
           '<div class="form-actions"><button type="button" class="btn danger block" data-nav="emergency">当てはまる → 緊急時の案内へ</button>' +
           '<button type="button" class="btn primary block" data-action="ivNext">当てはまらない → 問診を始める</button></div>';
@@ -1098,6 +1159,12 @@
       (pet ? '<button type="button" class="btn ghost block" data-nav="card">🪪 もしもカードを見せる（持病・アレルギー・薬）</button>' : '') + '</section>';
     html += emergencyGuidesHtml(pet);
     html += dangerSignsHtml();
+    /* 下にスクロールして上の電話ボタンが見えなくなったら、下に電話の帯を出す（v1.18） */
+    if (h.phone || nt.phone) {
+      html += '<div class="call-dock" id="callDock" aria-label="動物病院に電話">' +
+        (h.phone ? '<a class="cd-btn" href="tel:' + esc(h.phone.replace(/[^\d+]/g, '')) + '">📞 ' + esc(h.name ? h.name.replace(/（.*?）/g, '') : 'かかりつけ') + '</a>' : '') +
+        (nt.phone ? '<a class="cd-btn night" href="tel:' + esc(nt.phone.replace(/[^\d+]/g, '')) + '">🌙 ' + esc(nt.name ? nt.name.replace(/（.*?）/g, '') : '夜間・救急') + '</a>' : '') + '</div>';
+    }
 
     html += '<section class="card"><h2>🗺️ 近くの動物病院を探す</h2><p class="muted small">地図アプリで検索します。表示される営業時間などは最新でない場合があります。</p>' +
       '<div class="form-actions"><a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('動物病院') + '">近くの動物病院（Googleマップ）</a>' +
@@ -1134,9 +1201,19 @@
   /* ============================================================
    * 設定・データ管理
    * ============================================================ */
+  /* 設定が長いので、上に目次（押すとその項目まで動く）を付ける */
+  function settingsIndex(html) {
+    const items = []; let n = 0;
+    html = html.replace(/<section class="card([^"]*)"><h2>([^<]*)<\/h2>/g, (all, cls, title) => {
+      const id = 'set-' + (n++); items.push([id, title.replace(/^[^\p{L}\p{N}]+/u, '').trim()]);
+      return '<section class="card' + cls + '" id="' + id + '"><h2>' + title + '</h2>';
+    });
+    const idx = '<nav class="set-index" aria-label="設定の目次">' + items.map((it) => '<button type="button" class="chip" data-action="jumpTo" data-id="' + it[0] + '">' + it[1] + '</button>').join('') + '</nav>';
+    return html.replace('<!--SET-INDEX-->', idx);
+  }
   function renderSettings() {
     const h = db.settings.hospital;
-    let html = '<h1 class="page-title">設定・データ管理</h1>';
+    let html = '<h1 class="page-title">設定・データ管理</h1><!--SET-INDEX-->';
     html += '<section class="card notice"><h2>🔒 データの保存について</h2><p>記録はこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。</p><ul>' +
       '<li>他のスマホやパソコンとは<strong>自動で同期されません</strong>。</li>' +
       '<li>ブラウザの履歴・サイトデータを消去すると記録も消えます。</li>' +
@@ -1155,6 +1232,7 @@
     html += '<section class="card"><h2>🪪 もしもカード・受診の記録・健康手帳</h2><div class="form-actions"><button type="button" class="btn ghost block" data-nav="card">もしもカード</button><button type="button" class="btn ghost block" data-nav="book">📘 健康手帳</button><button type="button" class="btn ghost block" data-nav="visits">受診の記録</button></div></section>';
     html += '<section class="card"><h2>⏰ 予定・リマインダー</h2><p class="muted small">ワクチン・服薬・予防薬などの予定を管理し、スマホのカレンダーに登録して通知を受け取れます。</p><button type="button" class="btn ghost block" data-nav="reminders">予定を管理する</button></section>';
     html += '<section class="card"><h2>🔊 音と振動</h2><label class="check-row"><input type="checkbox" data-action-change="toggleSound"' + (soundOn() ? ' checked' : '') + '><span>記録したときに短い音を鳴らす</span></label><label class="check-row"><input type="checkbox" data-action-change="toggleHaptic"' + (hapticOn() ? ' checked' : '') + '><span>記録したときに軽く振動する</span></label><p class="muted small">音はマナーモードでは鳴らないことがあります。振動はAndroidと、iPhone（iOS 18以降）で使えます。</p></section>';
+    html += researchCardHtml();
     html += '<section class="card"><h2>🔔 毎日のお知らせ</h2><p class="muted small">' + (db.settings.dailyTime ? '毎日' + esc(db.settings.dailyTime) + 'に登録しました（カレンダーのお知らせ）。' : '毎日決まった時間に、記録のお知らせをカレンダーから受け取れます。') + '</p><button type="button" class="btn ghost block" data-action="dailyReminder">' + (db.settings.dailyTime ? '時間を変えて登録しなおす' : 'お知らせを設定する') + '</button></section>';
     html += '<section class="card"><h2>💾 バックアップ</h2><p class="muted small">すべてのデータ（ペット・記録・問診メモ・設定）を1つのファイルに書き出します。機種変更時はこのファイルを読み込んでください。</p>' +
       '<div class="form-actions"><button type="button" class="btn primary block" data-action="exportJson">バックアップを書き出す（JSON）</button>' +
@@ -1166,13 +1244,14 @@
       '<li><strong>病院への共有リンク</strong>：選んだ情報がリンク自体に入ります。LINE・メールで送ると、その送信履歴にも残ります。</li>' +
       '<li><strong>Googleカレンダーに追加</strong>：ペット名・予定名・メモがGoogleに送られます。</li>' +
       '<li><strong>近くの動物病院を探す</strong>：Googleマップで検索します（検索語は「動物病院」などの固定の言葉だけです）。</li>' +
-      '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li></ul></section>';
+      '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li>' +
+      '<li><strong>文字の形（フォント）</strong>：見出しの丸い文字をGoogle Fontsから読み込みます。このとき端末の通信情報（IPアドレスなど）がGoogleに渡りますが、記録の内容は送られません。</li></ul></section>';
     html += '<section class="card"><h2>📱 ホーム画面に追加</h2><p class="muted small">iPhone（Safari）：共有ボタン →「ホーム画面に追加」<br>Android（Chrome）：右上メニュー →「ホーム画面に追加」または「アプリをインストール」</p></section>';
 
     html += '<section class="card"><h2>このアプリについて</h2><p class="small">ことぽすと デモ版 v' + APP_VERSION + '</p><p class="muted small">本アプリは健康記録と情報整理のためのツールです。病気の診断、治療方針の決定、緊急度の判定は行いません。体調に不安があるときは動物病院にご相談ください。</p>' +
       '<p class="muted small">ペット ' + db.pets.length + '頭／記録 ' + db.logs.length + '件／問診メモ ' + db.memos.length + '件／予定 ' + db.reminders.length + '件</p>' +
       '<button type="button" class="btn danger-ghost block" data-action="wipe">すべてのデータを削除</button></section>';
-    return html;
+    return settingsIndex(html);
   }
 
   function hospitalFormHtml(kind) {
@@ -1283,7 +1362,7 @@
     const pet = getPet(r.petId);
     const badge = st === 'overdue' ? '<span class="tag">予定日を過ぎています</span>' : st === 'today' ? '<span class="tag warn">今日</span>' : st === 'done' ? '<span class="tag">完了</span>' : '';
     return '<li class="rem-item rem-' + st + '"><button type="button" class="log-item" data-action="editReminder" data-id="' + esc(r.id) + '">' +
-      '<span class="log-dot" style="--c:#1f7a68" aria-hidden="true">' + t.emoji + '</span>' +
+      '<span class="log-dot" style="--c:#B43C06" aria-hidden="true">' + t.emoji + '</span>' +
       '<span class="log-main"><span class="log-cat">' + esc(r.title || t.label) + ' ' + badge + '</span>' +
       '<span class="log-memo">' + esc(fmtDateTime(r.dueAt)) + (r.repeat !== 'none' ? '・' + esc(repeatLabel(r.repeat)) : '') + (showPet && pet ? '・' + esc(pet.name) : '') + '</span></span>' +
       '<span class="chev" aria-hidden="true">›</span></button>' +
@@ -1292,17 +1371,6 @@
   }
   function sortedReminders(list) {
     return list.slice().sort((a, b) => (a.done - b.done) || (a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : 0));
-  }
-  function homeRemindersHtml(pet) {
-    const list = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done));
-    const due = list.filter((r) => reminderStatus(r) !== 'upcoming');
-    let html = '<section class="card"><div class="row-between"><h2>⏰ 予定' + (due.length ? ' <span class="tag warn">' + due.length + '</span>' : '') + '</h2><button type="button" class="link" data-nav="reminders">すべて見る</button></div>';
-    if (!list.length) {
-      html += '<p class="muted small">ワクチン・服薬・予防薬などの予定を登録すると、ここに表示されます。</p><button type="button" class="btn ghost block" data-action="newReminder">＋ 予定を追加</button>';
-    } else {
-      html += '<ul class="log-list">' + list.slice(0, 3).map((r) => reminderItemHtml(r, false)).join('') + '</ul>';
-    }
-    return html + '</section>';
   }
   function renderReminders() {
     let html = '<div class="row-between"><h1 class="page-title">予定・リマインダー</h1><button type="button" class="btn primary small" data-action="newReminder">＋ 予定</button></div>';
@@ -2077,7 +2145,7 @@
     const H = 220 + body.reduce((a, b) => a + b[1].length * lh + 12, 0) + 120;
     cv.width = W; cv.height = H;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#1f7a68'; ctx.fillRect(0, 0, W, 150);
+    ctx.fillStyle = '#B43C06'; ctx.fillRect(0, 0, W, 150);
     ctx.fillStyle = '#ffffff'; ctx.font = font(34, true); ctx.fillText('もしもカード（ことぽすと）', pad, 62);
     ctx.font = font(52, true); ctx.fillText(c.name, pad, 125);
     let y = 210;
@@ -2633,14 +2701,6 @@
     const i = (new Date().getDate() + pet.name.length) % PET_LINES.length;
     return PET_LINES[i];
   }
-  function gameBarHtml(pet) {
-    const g = gameStats();
-    const L = levelOf(g.exp);
-    const pct = Math.round(L.cur / L.need * 100);
-    return '<button type="button" class="card game-bar" data-nav="game"><span class="gb-lv">Lv.' + L.lv + '</span><span class="gb-main"><span class="gb-title">' + esc(L.title) + (g.streak.current ? '　<span class="gb-streak">🔥' + g.streak.current + '日連続</span>' : '') + '</span>' +
-      '<span class="gb-track" role="progressbar" aria-valuemin="0" aria-valuemax="' + L.need + '" aria-valuenow="' + L.cur + '"><span style="width:' + pct + '%"></span></span><span class="gb-exp">' + L.cur + ' / ' + L.need + ' EXP</span></span>' +
-      '<span class="gb-say">' + speciesOf(pet.species).emoji + '「' + esc(petLine(pet)) + '」</span></button>';
-  }
   function renderGame() {
     const g = gameStats();
     const L = levelOf(g.exp);
@@ -2735,7 +2795,7 @@
         c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
         c.font = 'bold 50px ' + font; c.fillStyle = '#5b6b67';
         c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
-        c.font = 'bold 40px ' + font; c.fillStyle = '#1f7a68'; c.fillText('ことぽすと', W / 2, 1270);
+        c.font = 'bold 40px ' + font; c.fillStyle = '#B43C06'; c.fillText('ことぽすと', W / 2, 1270);
         cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
       }).catch(() => reject(new Error('画像を作れませんでした')));
     });
@@ -2930,10 +2990,12 @@
     dailyReminder: () => openDailyReminder(),
     editDaily: () => { const p = activePet(); if (p) openSheet('今日のお世話の項目', editDailyHtml(p)); },
     resetDaily: () => { const p = activePet(); if (p && commit(() => { delete p.daily; })) { closeSheet(); rerender(); } },
+    toggleResearch: () => { if (commit(() => { db.settings.research = researchAgreed() ? { agreed: false, at: null, v: RESEARCH_TERMS_V } : { agreed: true, at: new Date().toISOString(), v: RESEARCH_TERMS_V }; })) { rerender(); toast(researchAgreed() ? 'ご協力ありがとうございます。いつでもやめられます。' : '協力をやめました。'); } },
     toggleHaptic: () => { if (commit(() => { db.settings.haptic = hapticOn() ? 'off' : 'on'; })) { rerender(); if (hapticOn()) M.haptic('success'); } },
     toggleSound: () => { if (commit(() => { db.settings.sound = soundOn() ? 'off' : 'on'; })) { rerender(); if (soundOn()) M.sound('tick', true); } },
     dailyIcs: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); downloadIcs(dailyReminderObj(t)); },
     dailyGoogle: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); window.open(googleCalendarUrl(dailyReminderObj(t)), '_blank', 'noopener'); },
+    jumpTo: (el) => { const t = document.getElementById(el.dataset.id); if (t) t.scrollIntoView({ behavior: M.reduced() ? 'auto' : 'smooth', block: 'start' }); },
     petTap: (el) => {
       const A = window.PAWCARE_AVATAR;
       const pet = activePet(); if (!pet) return;
@@ -3115,6 +3177,7 @@
     }
     if (el.dataset.actionChange === 'toggleSound') { actions.toggleSound(); return; }
     if (el.dataset.actionChange === 'toggleHaptic') { actions.toggleHaptic(); return; }
+    if (el.dataset.actionChange === 'toggleResearch') { actions.toggleResearch(); return; }
     if (el.dataset.actionChange === 'importJson') {
       importJson(el.files && el.files[0]);
       el.value = '';

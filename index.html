@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ことぽすと｜うちの子の“いつも”を、先生へ。</title>
   <meta name="description" content="ペットの毎日の健康記録と、体調不良・緊急時に動物病院へ伝える問診メモを整理するアプリ（デモ版）。">
-  <meta name="theme-color" content="#1f7a68">
+  <meta name="theme-color" content="#E2520B">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ことぽすと">
   <meta property="og:title" content="ことぽすと｜うちの子の“いつも”を、先生へ。">
@@ -22,6 +22,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ことぽすと">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preload" href="img/splash-bg.webp" as="image">
+  <link rel="preload" href="img/splash-chick.webp" as="image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -29,10 +34,30 @@
     <p class="noscript">ことぽすとを利用するにはJavaScriptを有効にしてください。</p>
   </noscript>
 
+  <div id="splash" class="splash" role="img" aria-label="ことぽすと 読み込み中">
+    <div class="splash-stage">
+      <img class="splash-bg" src="img/splash-bg.webp" alt="" width="864" height="1152">
+      <img class="splash-chick" src="img/splash-chick.webp" alt="" width="436" height="563">
+    </div>
+  </div>
+  <script>
+    (function () {
+      var s = document.getElementById('splash');
+      function drop() { if (s && s.parentNode) s.parentNode.removeChild(s); }
+      try {
+        var calm = /^#\/(emergency|interview|card|view)/.test(location.hash);
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (calm || reduce || sessionStorage.getItem('kp.splash')) { drop(); return; }
+        sessionStorage.setItem('kp.splash', '1');
+      } catch (e) {}
+      s.addEventListener('click', drop);
+      setTimeout(drop, 2300);
+    })();
+  </script>
+
   <header class="app-header">
     <div class="brand">
-      <img src="icons/icon-192.png" alt="" width="28" height="28">
-      <span>ことぽすと</span>
+      <img src="icons/icon-192.png" alt="ことぽすと" width="30" height="30">
     </div>
     <button type="button" class="header-emergency" data-nav="emergency" aria-label="緊急時の案内を開く">緊急時</button>
   </header>

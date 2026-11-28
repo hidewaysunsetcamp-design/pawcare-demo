@@ -1,5 +1,5 @@
 /* PAWCARE Service Worker：オフライン表示用。HTML/JS/CSSはネットワーク優先で常に最新を取得する */
-const CACHE = 'pawcare-v1.16.0';
+const CACHE = 'pawcare-v1.18.0';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,8 @@ const ASSETS = [
   './js/care.js',
   './js/avatar.js',
   './js/motion.js',
+  './img/splash-bg.webp',
+  './img/splash-chick.webp',
   './img/avatars/dog.webp',
   './img/avatars/cat.webp',
   './img/avatars/rabbit.webp',

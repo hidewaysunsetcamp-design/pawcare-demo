@@ -9,6 +9,20 @@ import re
 import os
 import sys
 from playwright.sync_api import sync_playwright
+from playwright.sync_api import Browser
+
+# 起動画面（v1.18）は1回の起動につき1度だけ。ふつうのテストでは出ないようにしておき、専用のテストで確かめる
+_raw_new_context = Browser.new_context
+def _orig_new_context(self, *a, **k):
+    # テスト環境では外部（Google Fonts）に出られないので、空の返事にして読み込みエラーを出さない
+    c = _raw_new_context(self, *a, **k)
+    c.route(re.compile(r'https://fonts\.(googleapis|gstatic)\.com/.*'), lambda r: r.fulfill(status=200, body='', content_type='text/css'))
+    return c
+def _ctx_without_splash(self, *a, **k):
+    c = _orig_new_context(self, *a, **k)
+    c.add_init_script("try { sessionStorage.setItem('kp.splash', '1'); } catch (e) {}")
+    return c
+Browser.new_context = _ctx_without_splash
 
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8765/'
 SHOT = os.environ.get('SHOT_DIR', '/tmp/pawcare-shots')
@@ -1106,6 +1120,21 @@ def run_v11(device_name):
         page.click('label:has(input[data-action-change=toggleHaptic])'); page.wait_for_timeout(120)
         st = get_db(page)['settings']
         check(f'[{tag}] 音と振動をオフにできる', st.get('sound') == 'off' and st.get('haptic') == 'off', str({k: st.get(k) for k in ['sound', 'haptic']}))
+        # v1.17 研究・開発への協力（任意・最初はオフ）
+        rc = page.locator('.research-card')
+        check(f'[{tag}] 研究への協力：設定に説明があり最初はオフ', rc.count() == 1 and not page.is_checked('input[data-action-change=toggleResearch]') and (st.get('research') or {}).get('agreed') is not True and '端末の外に出ません' in rc.inner_text() and '売ったり渡したりしません' in rc.inner_text())
+        page.click('label:has(input[data-action-change=toggleResearch])'); page.wait_for_timeout(150)
+        r = get_db(page)['settings'].get('research') or {}
+        check(f'[{tag}] 研究への協力：同意すると日付と版が残る', r.get('agreed') is True and r.get('v') == 1 and bool(r.get('at')) and page.locator('.research-when').count() == 1, str(r))
+        page.reload(); wait_rendered(page)
+        check(f'[{tag}] 研究への協力：読み込み直しても同意が残る', page.is_checked('input[data-action-change=toggleResearch]'))
+        page.click('label:has(input[data-action-change=toggleResearch])'); page.wait_for_timeout(150)
+        r = get_db(page)['settings'].get('research') or {}
+        check(f'[{tag}] 研究への協力：いつでもやめられる', r.get('agreed') is False and r.get('at') is None, str(r))
+        page.evaluate("() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); d.settings.research = { agreed: true, at: 'x', v: 99 }; localStorage.setItem('pawcare.v1', JSON.stringify(d)); }")
+        page.reload(); wait_rendered(page)
+        check(f'[{tag}] 研究への協力：版が違う・おかしい同意は無効になる', not page.is_checked('input[data-action-change=toggleResearch]'))
+        hide_toast(page)
 
         # ---------- v1.14.1 緊急時はお祝いを出さない・電話を最初に ----------
         page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('pawcare.v1')); const p = d.pets.find(x => x.id === d.settings.activePetId); p.daily = ['food'];
@@ -1134,6 +1163,34 @@ def run_v11(device_name):
         check(f'[{tag}] 猫（男の子）には血栓症・尿閉、胃拡張は出ない', '急に後ろ足' in g and 'おしっこが出ない' in g and '吐こうとしても吐けない' not in g and '避妊していない' not in g)
         check(f'[{tag}] 緊急時の追加に動き・お祝いがない', dp.locator('.confetti, #celebrate').count() == 0)
         dctx.close()
+        # v1.18 達成度のメーター
+        page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        gv = page.evaluate("() => { const g = document.querySelector('.care .gauge'); if (!g) return null; return { now: +g.getAttribute('aria-valuenow'), segs: g.querySelectorAll('.g-seg').length, on: g.querySelectorAll('.g-seg.on').length, txt: g.querySelector('.g-num strong').textContent }; }")
+        check(f'[{tag}] 今日のお世話に達成度のメーター（15本・％表示）', bool(gv) and gv['segs'] == 15 and gv['txt'] == str(gv['now']) + '%' and gv['on'] == round(gv['now'] / 100 * 15), str(gv))
+        # v1.18 シール帳
+        sb = page.evaluate("() => { const b = document.querySelector('.sticker-book'); if (!b) return null; const now = new Date(); const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return { days: b.querySelectorAll('.sb-cell:not(.sb-pad)').length, dim: dim, has: b.querySelectorAll('.sb-cell.has').length, count: parseInt(b.querySelector('.sb-count').textContent), today: b.querySelectorAll('.sb-cell.today').length }; }")
+        check(f'[{tag}] ホームにシール帳（今月の日数ぶんのマス・枚数が合う）', bool(sb) and sb['days'] == sb['dim'] and sb['has'] == sb['count'] and sb['today'] == 1, str(sb))
+        check(f'[{tag}] 今日記録していればシールが貼られている', page.locator('.sticker-book .sb-cell.today.has').count() == 1)
+        # v1.18 起動画面とオレンジの配色
+        sctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo'); sp = sctx.new_page()
+        sp.goto(URL + '#/home'); sp.wait_for_timeout(300)
+        check(f'[{tag}] 起動画面にニワトリが出る', sp.locator('#splash .splash-chick').count() == 1 and sp.evaluate("() => { const i = document.querySelector('.splash-chick'); return i.complete && i.naturalWidth > 0; }"))
+        sp.wait_for_timeout(2300)
+        check(f'[{tag}] 起動画面は2.5秒以内に消える', sp.locator('#splash').count() == 0)
+        sp.reload(); sp.wait_for_timeout(200)
+        check(f'[{tag}] 起動画面は同じ起動中に二度出ない', sp.locator('#splash').count() == 0)
+        sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/home'); sp.reload(); sp.wait_for_timeout(200)
+        sp.locator('#splash').click(); sp.wait_for_timeout(100)
+        check(f'[{tag}] 起動画面はタップで飛ばせる', sp.locator('#splash').count() == 0)
+        sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/emergency'); sp.reload(); sp.wait_for_timeout(100)
+        check(f'[{tag}] 緊急時の画面を直接開いたときは起動画面を出さない', sp.locator('#splash').count() == 0)
+        hdr = sp.evaluate("getComputedStyle(document.querySelector('.app-header')).backgroundColor")
+        check(f'[{tag}] ヘッダーがオレンジ', hdr == 'rgb(226, 82, 11)', hdr)
+        sctx.close()
+        rctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo', reduced_motion='reduce'); rp = rctx.new_page()
+        rp.goto(URL + '#/home'); rp.wait_for_timeout(100)
+        check(f'[{tag}] 動きを減らす設定では起動画面を出さない', rp.locator('#splash').count() == 0)
+        rctx.close()
         check(f'[{tag}] v1.1 JavaScriptエラーなし', not errors, '; '.join(errors[:5]))
         browser.close()
 
