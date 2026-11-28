@@ -22,6 +22,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ことぽすと">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preload" href="img/splash-bg.webp" as="image">
+  <link rel="preload" href="img/splash-chick.webp" as="image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -29,18 +34,10 @@
     <p class="noscript">ことぽすとを利用するにはJavaScriptを有効にしてください。</p>
   </noscript>
 
-  <div id="splash" class="splash" aria-hidden="true">
-    <div class="splash-in">
-      <svg class="splash-mark" viewBox="0 0 120 120" aria-hidden="true">
-        <circle cx="60" cy="60" r="56" fill="#fff"/>
-        <ellipse class="toe" cx="35" cy="50" rx="9" ry="12" transform="rotate(-20 35 50)"/>
-        <ellipse class="toe" cx="51" cy="35" rx="9" ry="12" transform="rotate(-6 51 35)"/>
-        <ellipse class="toe" cx="69" cy="35" rx="9" ry="12" transform="rotate(6 69 35)"/>
-        <ellipse class="toe" cx="85" cy="50" rx="9" ry="12" transform="rotate(20 85 50)"/>
-        <path class="pad" d="M60 58c-14 0-27 14-27 26 0 9 7 13 15 11 5-1 8-3 12-3s7 2 12 3c8 2 15-2 15-11 0-12-13-26-27-26z"/>
-      </svg>
-      <p class="splash-name"><span>こ</span><span>と</span><span>ぽ</span><span>す</span><span>と</span></p>
-      <p class="splash-tag">うちの子の“いつも”を、先生へ。</p>
+  <div id="splash" class="splash" role="img" aria-label="ことぽすと 読み込み中">
+    <div class="splash-stage">
+      <img class="splash-bg" src="img/splash-bg.webp" alt="" width="864" height="1152">
+      <img class="splash-chick" src="img/splash-chick.webp" alt="" width="436" height="563">
     </div>
   </div>
   <script>
@@ -54,14 +51,13 @@
         sessionStorage.setItem('kp.splash', '1');
       } catch (e) {}
       s.addEventListener('click', drop);
-      setTimeout(drop, 1900);
+      setTimeout(drop, 2300);
     })();
   </script>
 
   <header class="app-header">
     <div class="brand">
-      <img src="icons/icon-192.png" alt="" width="28" height="28">
-      <span>ことぽすと</span>
+      <img src="icons/icon-192.png" alt="ことぽすと" width="30" height="30">
     </div>
     <button type="button" class="header-emergency" data-nav="emergency" aria-label="緊急時の案内を開く">緊急時</button>
   </header>

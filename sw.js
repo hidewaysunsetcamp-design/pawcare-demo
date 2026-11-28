@@ -9,6 +9,8 @@ const ASSETS = [
   './js/care.js',
   './js/avatar.js',
   './js/motion.js',
+  './img/splash-bg.webp',
+  './img/splash-chick.webp',
   './img/avatars/dog.webp',
   './img/avatars/cat.webp',
   './img/avatars/rabbit.webp',

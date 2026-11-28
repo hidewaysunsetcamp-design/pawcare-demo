@@ -12,7 +12,12 @@ from playwright.sync_api import sync_playwright
 from playwright.sync_api import Browser
 
 # 起動画面（v1.18）は1回の起動につき1度だけ。ふつうのテストでは出ないようにしておき、専用のテストで確かめる
-_orig_new_context = Browser.new_context
+_raw_new_context = Browser.new_context
+def _orig_new_context(self, *a, **k):
+    # テスト環境では外部（Google Fonts）に出られないので、空の返事にして読み込みエラーを出さない
+    c = _raw_new_context(self, *a, **k)
+    c.route(re.compile(r'https://fonts\.(googleapis|gstatic)\.com/.*'), lambda r: r.fulfill(status=200, body='', content_type='text/css'))
+    return c
 def _ctx_without_splash(self, *a, **k):
     c = _orig_new_context(self, *a, **k)
     c.add_init_script("try { sessionStorage.setItem('kp.splash', '1'); } catch (e) {}")
@@ -1169,9 +1174,9 @@ def run_v11(device_name):
         # v1.18 起動画面とオレンジの配色
         sctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo'); sp = sctx.new_page()
         sp.goto(URL + '#/home'); sp.wait_for_timeout(300)
-        check(f'[{tag}] 起動画面に「ことぽすと」が出る', sp.locator('#splash').count() == 1 and sp.inner_text('.splash-name').replace('\n', '') == 'ことぽすと')
-        sp.wait_for_timeout(2000)
-        check(f'[{tag}] 起動画面は2秒以内に消える', sp.locator('#splash').count() == 0)
+        check(f'[{tag}] 起動画面にニワトリが出る', sp.locator('#splash .splash-chick').count() == 1 and sp.evaluate("() => { const i = document.querySelector('.splash-chick'); return i.complete && i.naturalWidth > 0; }"))
+        sp.wait_for_timeout(2300)
+        check(f'[{tag}] 起動画面は2.5秒以内に消える', sp.locator('#splash').count() == 0)
         sp.reload(); sp.wait_for_timeout(200)
         check(f'[{tag}] 起動画面は同じ起動中に二度出ない', sp.locator('#splash').count() == 0)
         sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/home'); sp.reload(); sp.wait_for_timeout(200)

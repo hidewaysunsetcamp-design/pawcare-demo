@@ -286,6 +286,16 @@
     if (v.indexOf('import/') === 0) return 'import';
     return VIEWS.indexOf(v) >= 0 ? v : 'home';
   }
+  /* 画面を描いたあとの小さな仕掛け（電話の帯の出し入れなど） */
+  let dockObserver = null;
+  function afterRender() {
+    if (dockObserver) { dockObserver.disconnect(); dockObserver = null; }
+    const dock = document.getElementById('callDock'), top = document.querySelector('.call-first');
+    if (dock && top && 'IntersectionObserver' in window) {
+      dockObserver = new IntersectionObserver((es) => { dock.classList.toggle('show', !es[0].isIntersecting); });
+      dockObserver.observe(top);
+    } else if (dock) dock.classList.add('show');
+  }
   function render() {
     /* デモ用リンク（#/demo）：まだデータがない端末ではサンプルデータを入れてホームを開く */
     if ((location.hash || '').replace(/^#\/?/, '') === 'demo') {
@@ -306,6 +316,7 @@
     else if (currentView !== lastView) { const c = document.getElementById('celebrate'); if (c) c.remove(); document.querySelectorAll('.confetti').forEach((x) => x.remove()); }
     $app.innerHTML = fn();
     window.scrollTo(0, 0);
+    afterRender();
     if (currentView !== lastView && currentView !== 'emergency' && !isRerender) M.enter($app);
     lastView = currentView;
     if (['view', 'cardview'].indexOf(currentView) < 0) checkGameNews();
@@ -360,6 +371,10 @@
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '"' + (ds.goal.indexOf(c.id) >= 0 ? ' data-goal="' + (ds.done.indexOf(c.id) >= 0 ? 'done' : 'todo') + '"' : '') + ' style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
+    /* そのほかの機能（体調が気になる・もしもカードなど）は、スクロールしすぎずに届く位置に */
+    const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
+      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['guide', '📗', '飼い方']];
+    html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
     html += stickerBookHtml(pet);
     html += weekMapHtml(pet);
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
@@ -376,10 +391,6 @@
     html += '<section class="card"><div class="row-between"><h2>今日の記録</h2><button type="button" class="link" data-nav="logs">すべて見る</button></div>';
     html += today.length ? '<ul class="log-list">' + today.slice(0, 3).map((l) => logItemHtml(l, false, true)).join('') + '</ul>' + (today.length > 3 ? '<button type="button" class="link" data-nav="logs">ほか' + (today.length - 3) + '件</button>' : '') : '<p class="empty">今日の記録はまだありません。</p>';
     html += '</section>';
-    /* 6. そのほかの機能はアイコンのタイルにまとめる */
-    const tiles = [['interview', '🩺', '体調が\n気になる'], ['card', '🪪', 'もしも\nカード'], ['book', '📘', '健康手帳'], ['visits', '🏥', '受診の\n記録'],
-      ['nutrition', '🍚', 'ごはん\nチェック'], ['reminders', '⏰', '予定'], ['@handoff', '👪', '家族に\n引き継ぐ'], ['guide', '📗', '飼い方']];
-    html += '<section class="card tiles-card"><div class="tiles">' + tiles.map((t) => '<button type="button" class="tile" ' + (t[0][0] === '@' ? 'data-action="' + t[0].slice(1) + '"' : 'data-nav="' + t[0] + '"') + '><span aria-hidden="true">' + t[1] + '</span>' + esc(t[2]).replace('\n', '<br>') + '</button>').join('') + '</div></section>';
     html += adSlotHtml('home');
     return html + localNotice;
   }
@@ -431,7 +442,7 @@
     let segs = '';
     for (let i = 0; i < N; i++) {
       const a = 180 - (i * 180 / (N - 1));
-      const r = 74, x = 100 + r * Math.cos(a * Math.PI / 180), y = 96 - r * Math.sin(a * Math.PI / 180);
+      const r = 78, x = 100 + r * Math.cos(a * Math.PI / 180), y = 98 - r * Math.sin(a * Math.PI / 180);
       segs += '<rect class="g-seg' + (i < on ? ' on' : '') + '" style="--i:' + i + '" x="' + (x - 6).toFixed(1) + '" y="' + (y - 15).toFixed(1) + '" width="12" height="30" rx="6" transform="rotate(' + (90 - a).toFixed(1) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
     }
     return '<div class="gauge" role="progressbar" aria-label="今日のお世話の達成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-valuetext="' + pct + '%（' + done + ' / ' + total + '）">' +
@@ -903,6 +914,7 @@
       case 0:
         html += '<p>症状を順番に入力すると、動物病院に伝えるための<strong>問診メモ</strong>を作成します。</p>' +
           '<p class="muted small">※このアプリは病気の診断や緊急度の判定は行いません。判断は必ず獣医師に相談してください。</p>' +
+          '<div class="form-actions iv-top"><button type="button" class="btn danger block" data-nav="emergency">いま苦しそう・ぐったり → 緊急時の案内へ</button></div>' +
           dangerSignsHtml() +
           '<div class="form-actions"><button type="button" class="btn danger block" data-nav="emergency">当てはまる → 緊急時の案内へ</button>' +
           '<button type="button" class="btn primary block" data-action="ivNext">当てはまらない → 問診を始める</button></div>';
@@ -1147,6 +1159,12 @@
       (pet ? '<button type="button" class="btn ghost block" data-nav="card">🪪 もしもカードを見せる（持病・アレルギー・薬）</button>' : '') + '</section>';
     html += emergencyGuidesHtml(pet);
     html += dangerSignsHtml();
+    /* 下にスクロールして上の電話ボタンが見えなくなったら、下に電話の帯を出す（v1.18） */
+    if (h.phone || nt.phone) {
+      html += '<div class="call-dock" id="callDock" aria-label="動物病院に電話">' +
+        (h.phone ? '<a class="cd-btn" href="tel:' + esc(h.phone.replace(/[^\d+]/g, '')) + '">📞 ' + esc(h.name ? h.name.replace(/（.*?）/g, '') : 'かかりつけ') + '</a>' : '') +
+        (nt.phone ? '<a class="cd-btn night" href="tel:' + esc(nt.phone.replace(/[^\d+]/g, '')) + '">🌙 ' + esc(nt.name ? nt.name.replace(/（.*?）/g, '') : '夜間・救急') + '</a>' : '') + '</div>';
+    }
 
     html += '<section class="card"><h2>🗺️ 近くの動物病院を探す</h2><p class="muted small">地図アプリで検索します。表示される営業時間などは最新でない場合があります。</p>' +
       '<div class="form-actions"><a class="btn ghost block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent('動物病院') + '">近くの動物病院（Googleマップ）</a>' +
@@ -1183,9 +1201,19 @@
   /* ============================================================
    * 設定・データ管理
    * ============================================================ */
+  /* 設定が長いので、上に目次（押すとその項目まで動く）を付ける */
+  function settingsIndex(html) {
+    const items = []; let n = 0;
+    html = html.replace(/<section class="card([^"]*)"><h2>([^<]*)<\/h2>/g, (all, cls, title) => {
+      const id = 'set-' + (n++); items.push([id, title.replace(/^[^\p{L}\p{N}]+/u, '').trim()]);
+      return '<section class="card' + cls + '" id="' + id + '"><h2>' + title + '</h2>';
+    });
+    const idx = '<nav class="set-index" aria-label="設定の目次">' + items.map((it) => '<button type="button" class="chip" data-action="jumpTo" data-id="' + it[0] + '">' + it[1] + '</button>').join('') + '</nav>';
+    return html.replace('<!--SET-INDEX-->', idx);
+  }
   function renderSettings() {
     const h = db.settings.hospital;
-    let html = '<h1 class="page-title">設定・データ管理</h1>';
+    let html = '<h1 class="page-title">設定・データ管理</h1><!--SET-INDEX-->';
     html += '<section class="card notice"><h2>🔒 データの保存について</h2><p>記録はこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。</p><ul>' +
       '<li>他のスマホやパソコンとは<strong>自動で同期されません</strong>。</li>' +
       '<li>ブラウザの履歴・サイトデータを消去すると記録も消えます。</li>' +
@@ -1216,13 +1244,14 @@
       '<li><strong>病院への共有リンク</strong>：選んだ情報がリンク自体に入ります。LINE・メールで送ると、その送信履歴にも残ります。</li>' +
       '<li><strong>Googleカレンダーに追加</strong>：ペット名・予定名・メモがGoogleに送られます。</li>' +
       '<li><strong>近くの動物病院を探す</strong>：Googleマップで検索します（検索語は「動物病院」などの固定の言葉だけです）。</li>' +
-      '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li></ul></section>';
+      '<li><strong>電話・共有ボタン</strong>：スマホの電話アプリや共有先のアプリに渡ります。</li>' +
+      '<li><strong>文字の形（フォント）</strong>：見出しの丸い文字をGoogle Fontsから読み込みます。このとき端末の通信情報（IPアドレスなど）がGoogleに渡りますが、記録の内容は送られません。</li></ul></section>';
     html += '<section class="card"><h2>📱 ホーム画面に追加</h2><p class="muted small">iPhone（Safari）：共有ボタン →「ホーム画面に追加」<br>Android（Chrome）：右上メニュー →「ホーム画面に追加」または「アプリをインストール」</p></section>';
 
     html += '<section class="card"><h2>このアプリについて</h2><p class="small">ことぽすと デモ版 v' + APP_VERSION + '</p><p class="muted small">本アプリは健康記録と情報整理のためのツールです。病気の診断、治療方針の決定、緊急度の判定は行いません。体調に不安があるときは動物病院にご相談ください。</p>' +
       '<p class="muted small">ペット ' + db.pets.length + '頭／記録 ' + db.logs.length + '件／問診メモ ' + db.memos.length + '件／予定 ' + db.reminders.length + '件</p>' +
       '<button type="button" class="btn danger-ghost block" data-action="wipe">すべてのデータを削除</button></section>';
-    return html;
+    return settingsIndex(html);
   }
 
   function hospitalFormHtml(kind) {
@@ -2966,6 +2995,7 @@
     toggleSound: () => { if (commit(() => { db.settings.sound = soundOn() ? 'off' : 'on'; })) { rerender(); if (soundOn()) M.sound('tick', true); } },
     dailyIcs: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); downloadIcs(dailyReminderObj(t)); },
     dailyGoogle: () => { const i = document.getElementById('dailyTime'); const t = i && /^\d\d:\d\d$/.test(i.value) ? i.value : '20:00'; commit(() => { db.settings.dailyTime = t; }); window.open(googleCalendarUrl(dailyReminderObj(t)), '_blank', 'noopener'); },
+    jumpTo: (el) => { const t = document.getElementById(el.dataset.id); if (t) t.scrollIntoView({ behavior: M.reduced() ? 'auto' : 'smooth', block: 'start' }); },
     petTap: (el) => {
       const A = window.PAWCARE_AVATAR;
       const pet = activePet(); if (!pet) return;
