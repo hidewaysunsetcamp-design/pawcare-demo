@@ -416,13 +416,26 @@
     const lastToday = (c) => logsSorted(db.logs.filter((l) => l.petId === pet.id && l.category === c && l.datetime.slice(0, 10) === t))[0];
     return '<div class="care' + (st.perfect ? ' perfect' : '') + '"><div class="row-between"><strong>' + (st.perfect ? '🐾 今日のお世話 パーフェクト！' : '今日のお世話') + '</strong>' +
       '<span class="daily-count">' + st.done.length + ' / ' + st.goal.length + '</span></div>' +
-      '<div class="progress big" role="progressbar" aria-label="今日のお世話の進み具合" aria-valuemin="0" aria-valuemax="' + st.goal.length + '" aria-valuenow="' + st.done.length + '"><span style="width:' + Math.round(st.done.length / st.goal.length * 100) + '%"></span></div>' +
+      gaugeHtml(st.done.length, st.goal.length) +
       '<ul class="care-list">' + st.goal.map((c) => {
         const cat = categoryOf(c), done = st.done.indexOf(c) >= 0, l = done ? lastToday(c) : null;
         return '<li><button type="button" class="care-row' + (done ? ' done' : '') + '" data-action="quick" data-cat="' + c + '"><span class="care-ic" aria-hidden="true">' + cat.emoji + '</span>' +
           '<span class="care-label">' + esc(cat.label) + (l ? '<small>' + esc(l.datetime.slice(11, 16)) + 'に記録</small>' : '') + '</span>' +
           '<span class="care-check" aria-label="' + (done ? '記録ずみ' : 'まだ') + '">' + (done ? '✓' : '') + '</span></button></li>';
       }).join('') + '</ul><button type="button" class="link small" data-action="editDaily">お世話の項目を変える</button></div>';
+  }
+  /* 達成度のメーター：半円に並んだ丸いバー（15本）。できた割合だけオレンジになる */
+  function gaugeHtml(done, total) {
+    const N = 15, pct = total ? Math.round(done / total * 100) : 0, on = Math.round(pct / 100 * N);
+    let segs = '';
+    for (let i = 0; i < N; i++) {
+      const a = 180 - (i * 180 / (N - 1));
+      const r = 74, x = 100 + r * Math.cos(a * Math.PI / 180), y = 96 - r * Math.sin(a * Math.PI / 180);
+      segs += '<rect class="g-seg' + (i < on ? ' on' : '') + '" style="--i:' + i + '" x="' + (x - 6).toFixed(1) + '" y="' + (y - 15).toFixed(1) + '" width="12" height="30" rx="6" transform="rotate(' + (90 - a).toFixed(1) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+    }
+    return '<div class="gauge" role="progressbar" aria-label="今日のお世話の達成度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-valuetext="' + pct + '%（' + done + ' / ' + total + '）">' +
+      '<svg viewBox="0 0 200 112" aria-hidden="true">' + segs + '</svg>' +
+      '<div class="g-num"><strong>' + pct + '<small>%</small></strong><span>達成度</span></div></div>';
   }
   function editDailyHtml(pet) {
     const goal = dailyGoal(pet);
@@ -1293,7 +1306,7 @@
     const pet = getPet(r.petId);
     const badge = st === 'overdue' ? '<span class="tag">予定日を過ぎています</span>' : st === 'today' ? '<span class="tag warn">今日</span>' : st === 'done' ? '<span class="tag">完了</span>' : '';
     return '<li class="rem-item rem-' + st + '"><button type="button" class="log-item" data-action="editReminder" data-id="' + esc(r.id) + '">' +
-      '<span class="log-dot" style="--c:#C04E0C" aria-hidden="true">' + t.emoji + '</span>' +
+      '<span class="log-dot" style="--c:#B43C06" aria-hidden="true">' + t.emoji + '</span>' +
       '<span class="log-main"><span class="log-cat">' + esc(r.title || t.label) + ' ' + badge + '</span>' +
       '<span class="log-memo">' + esc(fmtDateTime(r.dueAt)) + (r.repeat !== 'none' ? '・' + esc(repeatLabel(r.repeat)) : '') + (showPet && pet ? '・' + esc(pet.name) : '') + '</span></span>' +
       '<span class="chev" aria-hidden="true">›</span></button>' +
@@ -2076,7 +2089,7 @@
     const H = 220 + body.reduce((a, b) => a + b[1].length * lh + 12, 0) + 120;
     cv.width = W; cv.height = H;
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#C04E0C'; ctx.fillRect(0, 0, W, 150);
+    ctx.fillStyle = '#B43C06'; ctx.fillRect(0, 0, W, 150);
     ctx.fillStyle = '#ffffff'; ctx.font = font(34, true); ctx.fillText('もしもカード（ことぽすと）', pad, 62);
     ctx.font = font(52, true); ctx.fillText(c.name, pad, 125);
     let y = 210;
@@ -2726,7 +2739,7 @@
         c.font = 'bold 92px ' + font; c.fillText(pet.name, W / 2, 1060, W - 120);
         c.font = 'bold 50px ' + font; c.fillStyle = '#5b6b67';
         c.fillText('Lv.' + L.lv + (g.streak.current ? '　🔥' + g.streak.current + '日 記録中' : '') , W / 2, 1150, W - 120);
-        c.font = 'bold 40px ' + font; c.fillStyle = '#C04E0C'; c.fillText('ことぽすと', W / 2, 1270);
+        c.font = 'bold 40px ' + font; c.fillStyle = '#B43C06'; c.fillText('ことぽすと', W / 2, 1270);
         cv.toBlob((b) => b ? resolve(b) : reject(new Error('画像を作れませんでした')), 'image/png');
       }).catch(() => reject(new Error('画像を作れませんでした')));
     });

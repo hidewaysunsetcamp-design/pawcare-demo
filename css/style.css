@@ -1,9 +1,9 @@
 /* PAWCARE スタイル（スマートフォン最優先） */
 :root {
-  --brand: #C04E0C;        /* ボタン・文字のオレンジ（白い文字が読める濃さ） */
-  --brand-dark: #9A3E08;
-  --brand-bright: #E36D14; /* ヘッダー・起動画面の明るいオレンジ */
-  --brand-soft: #FFE6D2;
+  --brand: #B43C06;        /* ボタン・文字のオレンジ（白い文字が読める濃さ） */
+  --brand-dark: #8E2F04;
+  --brand-bright: #E2520B; /* ヘッダー・起動画面の明るいオレンジ */
+  --brand-soft: #FFE1CF;
   --bg: #FFF6EE;
   --card: #ffffff;
   --text: #2B2118;
@@ -45,7 +45,7 @@ p { margin: 0 0 .6em; }
   background: var(--brand-bright);
   border-bottom: 1px solid rgba(90, 45, 10, .15);
 }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .06em; color: #2A1A0E; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .06em; color: #1F1410; }
 .brand img { border-radius: 8px; }
 .header-emergency {
   border: 0; border-radius: 999px; padding: 6px 14px;
@@ -471,7 +471,7 @@ body[data-view=book] .storage-banner { display: none; }
 body[data-view=home], body[data-view=avatar] { background: linear-gradient(#f7fafb, #eef3f5); }
 body[data-view=home] #app, body[data-view=avatar] #app { font-family: var(--round-font); }
 .stage { position: relative; margin: 4px 0 14px; padding: 16px 16px 14px; border-radius: 28px; text-align: center;
-  background: linear-gradient(180deg, var(--bg-a, #E9F6FD), var(--bg-b, #fff)); border: 2px solid #fff;
+  background: linear-gradient(180deg, var(--bg-a, #FFEBDD), var(--bg-b, #FFF9F3)); border: 2px solid #fff;
   box-shadow: 0 0 0 1px #ECDCCC, 0 6px 18px rgba(120, 60, 10, .10); }
 .stage .bubble { position: relative; display: inline-block; max-width: 92%; margin: 0 auto 2px; padding: 10px 16px; border-radius: 20px;
   background: #fff; border: 2px solid #ECDCCC; font-weight: 700; font-size: 1rem; line-height: 1.5; color: var(--text); }
@@ -667,7 +667,7 @@ input[type=checkbox]:focus-visible { outline: 3px solid var(--soft-blue-soft); o
 /* 今日のおせわ（太い進み具合バー） */
 .daily { margin: -2px 0 12px; padding: 10px 12px 8px; border-radius: 18px; background: #f3f8fa; border: 2px solid #F3E6D8; }
 .daily .row-between strong { font-size: 1rem; }
-.daily-count { font-weight: 800; color: var(--soft-blue); }
+.daily-count { font-weight: 800; color: var(--brand); }
 .daily .small { margin: 2px 0 0; }
 .progress.big { height: 16px; margin: 6px 0; background: #e2ebee; }
 .progress.big > span { background: linear-gradient(180deg, #7fd86a, #58c442); position: relative; transition: width .6s cubic-bezier(.2, 1.3, .4, 1); }
@@ -837,9 +837,22 @@ input.haptic-input { -webkit-appearance: auto; appearance: auto; }
 .splash-name span:nth-child(3) { animation-delay: .48s; }
 .splash-name span:nth-child(4) { animation-delay: .56s; }
 .splash-name span:nth-child(5) { animation-delay: .64s; }
-.splash-tag { margin: 12px 0 0; font-size: .95rem; font-weight: 700; color: #2A1A0E; animation: splash-fade .4s ease-out .85s both; }
+.splash-tag { margin: 12px 0 0; font-size: .95rem; font-weight: 700; color: #1F1410; animation: splash-fade .4s ease-out .85s both; }
 @keyframes splash-stamp { from { transform: scale(0) rotate(-20deg); opacity: 0; } }
 @keyframes splash-pop { from { transform: translateY(18px) scale(.6); opacity: 0; } }
 @keyframes splash-fade { from { opacity: 0; transform: translateY(6px); } }
 @keyframes splash-out { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) { .splash { display: none !important; } }
+
+/* v1.18 達成度のメーター（半円に並んだ丸いバー） */
+.gauge { position: relative; width: 220px; max-width: 80%; margin: 2px auto 6px; }
+.gauge svg { display: block; width: 100%; height: auto; }
+.g-seg { fill: #EFE4D9; }
+.g-seg.on { fill: var(--brand-bright); animation: g-in .35s cubic-bezier(.2, 1.5, .4, 1) both; animation-delay: calc(var(--i) * 30ms); transform-box: fill-box; transform-origin: center; }
+.care.perfect .g-seg.on { fill: #F5B417; }
+.g-num { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; line-height: 1.1; }
+.g-num strong { display: block; font-size: 2rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.g-num small { font-size: .55em; margin-left: 2px; }
+.g-num span { font-size: .78rem; color: var(--muted); font-weight: 700; }
+@keyframes g-in { from { opacity: 0; transform: scale(.4); } }
+@media (prefers-reduced-motion: reduce) { .g-seg.on { animation: none; } }

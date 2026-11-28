@@ -1158,6 +1158,10 @@ def run_v11(device_name):
         check(f'[{tag}] 猫（男の子）には血栓症・尿閉、胃拡張は出ない', '急に後ろ足' in g and 'おしっこが出ない' in g and '吐こうとしても吐けない' not in g and '避妊していない' not in g)
         check(f'[{tag}] 緊急時の追加に動き・お祝いがない', dp.locator('.confetti, #celebrate').count() == 0)
         dctx.close()
+        # v1.18 達成度のメーター
+        page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
+        gv = page.evaluate("() => { const g = document.querySelector('.care .gauge'); if (!g) return null; return { now: +g.getAttribute('aria-valuenow'), segs: g.querySelectorAll('.g-seg').length, on: g.querySelectorAll('.g-seg.on').length, txt: g.querySelector('.g-num strong').textContent }; }")
+        check(f'[{tag}] 今日のお世話に達成度のメーター（15本・％表示）', bool(gv) and gv['segs'] == 15 and gv['txt'] == str(gv['now']) + '%' and gv['on'] == round(gv['now'] / 100 * 15), str(gv))
         # v1.18 起動画面とオレンジの配色
         sctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo'); sp = sctx.new_page()
         sp.goto(URL + '#/home'); sp.wait_for_timeout(300)
@@ -1172,7 +1176,7 @@ def run_v11(device_name):
         sp.evaluate("sessionStorage.clear()"); sp.goto(URL + '#/emergency'); sp.reload(); sp.wait_for_timeout(100)
         check(f'[{tag}] 緊急時の画面を直接開いたときは起動画面を出さない', sp.locator('#splash').count() == 0)
         hdr = sp.evaluate("getComputedStyle(document.querySelector('.app-header')).backgroundColor")
-        check(f'[{tag}] ヘッダーがオレンジ', hdr == 'rgb(227, 109, 20)', hdr)
+        check(f'[{tag}] ヘッダーがオレンジ', hdr == 'rgb(226, 82, 11)', hdr)
         sctx.close()
         rctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo', reduced_motion='reduce'); rp = rctx.new_page()
         rp.goto(URL + '#/home'); rp.wait_for_timeout(100)
