@@ -1162,6 +1162,10 @@ def run_v11(device_name):
         page.goto(URL + '#/home'); page.reload(); wait_rendered(page)
         gv = page.evaluate("() => { const g = document.querySelector('.care .gauge'); if (!g) return null; return { now: +g.getAttribute('aria-valuenow'), segs: g.querySelectorAll('.g-seg').length, on: g.querySelectorAll('.g-seg.on').length, txt: g.querySelector('.g-num strong').textContent }; }")
         check(f'[{tag}] 今日のお世話に達成度のメーター（15本・％表示）', bool(gv) and gv['segs'] == 15 and gv['txt'] == str(gv['now']) + '%' and gv['on'] == round(gv['now'] / 100 * 15), str(gv))
+        # v1.18 シール帳
+        sb = page.evaluate("() => { const b = document.querySelector('.sticker-book'); if (!b) return null; const now = new Date(); const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return { days: b.querySelectorAll('.sb-cell:not(.sb-pad)').length, dim: dim, has: b.querySelectorAll('.sb-cell.has').length, count: parseInt(b.querySelector('.sb-count').textContent), today: b.querySelectorAll('.sb-cell.today').length }; }")
+        check(f'[{tag}] ホームにシール帳（今月の日数ぶんのマス・枚数が合う）', bool(sb) and sb['days'] == sb['dim'] and sb['has'] == sb['count'] and sb['today'] == 1, str(sb))
+        check(f'[{tag}] 今日記録していればシールが貼られている', page.locator('.sticker-book .sb-cell.today.has').count() == 1)
         # v1.18 起動画面とオレンジの配色
         sctx = _orig_new_context(browser, **dev, locale='ja-JP', timezone_id='Asia/Tokyo'); sp = sctx.new_page()
         sp.goto(URL + '#/home'); sp.wait_for_timeout(300)

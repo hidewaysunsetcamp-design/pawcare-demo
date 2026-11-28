@@ -360,6 +360,7 @@
       html += '<button type="button" class="quick-btn" data-action="quick" data-cat="' + c.id + '"' + (ds.goal.indexOf(c.id) >= 0 ? ' data-goal="' + (ds.done.indexOf(c.id) >= 0 ? 'done' : 'todo') + '"' : '') + ' style="--c:' + c.color + ';--n:' + n + '"><span aria-hidden="true">' + c.emoji + '</span>' + esc(c.id === 'ingest' ? '誤食かも' : c.label) + '<small class="qs">' + esc(quickStatText(pet.id, c.id)) + '</small></button>';
     });
     html += '</div><button type="button" class="link" data-action="newLog">＋ 日時・メモを入力して記録</button></section>';
+    html += stickerBookHtml(pet);
     html += weekMapHtml(pet);
     /* 4. 期限が近い予定・もしもの準備は、あるときだけ1行で */
     const due = sortedReminders(db.reminders.filter((r) => r.petId === pet.id && !r.done && r.dueAt <= toLocalInput(new Date(Date.now() + 24 * 3600000))));
@@ -444,6 +445,32 @@
       '<div class="check-list">' + opts.map((c) => '<label class="check-row"><input type="checkbox" name="d_' + c + '"' + (goal.indexOf(c) >= 0 ? ' checked' : '') + '><span>' + categoryOf(c).emoji + ' ' + esc(categoryOf(c).label) + '</span></label>').join('') + '</div>' +
       '<p class="form-error" hidden></p><div class="form-actions"><button type="submit" class="btn primary block">保存</button>' +
       '<button type="button" class="btn ghost block" data-action="resetDaily">おすすめに戻す</button></div></form>';
+  }
+  /* シール帳：記録した日にうちの子のシールが1枚。お世話を全部できた日は金のふち。今日のシールは初めて見たときだけ弾んで貼られる */
+  function stickerBookHtml(pet) {
+    const t = todayStr(), y = +t.slice(0, 4), m = +t.slice(5, 7);
+    const first = new Date(y, m - 1, 1), daysIn = new Date(y, m, 0).getDate(), pad = first.getDay();
+    const mine = new Set(db.logs.filter((l) => l.petId === pet.id && l.datetime.slice(0, 7) === t.slice(0, 7)).map((l) => l.datetime.slice(0, 10)));
+    const key = 'kp.sb.' + pet.id + '.' + t;
+    let pop = false;
+    if (mine.has(t) && celebrationAllowed(pet)) { try { pop = !sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) { pop = false; } }
+    let cells = '', count = 0, gold = 0;
+    for (let i = 0; i < pad; i++) cells += '<li class="sb-cell sb-pad' + ((i % 2) ? ' alt' : '') + '" aria-hidden="true"></li>';
+    for (let d = 1; d <= daysIn; d++) {
+      const ds = t.slice(0, 8) + String(d).padStart(2, '0'), idx = pad + d - 1;
+      const alt = ((Math.floor(idx / 7) + idx % 7) % 2) ? ' alt' : '';
+      if (mine.has(ds)) {
+        const perfect = dailyState(pet, ds).perfect; count++; if (perfect) gold++;
+        const tilt = ((d * 37) % 21) - 10;
+        cells += '<li class="sb-cell has' + alt + (perfect ? ' gold' : '') + (ds === t ? ' today' : '') + (ds === t && pop ? ' pop' : '') + '" aria-label="' + d + '日 シール' + (perfect ? '（金）' : '') + '"><span class="sb-sticker" style="--r:' + tilt + 'deg">' + window.PAWCARE_AVATAR.html(pet, { size: 34, static: true, label: '' }) + '</span></li>';
+      } else {
+        const future = ds > t;
+        cells += '<li class="sb-cell' + alt + (future ? ' future' : '') + (ds === t ? ' today' : '') + '" aria-label="' + d + '日' + (future ? '' : ' シールなし') + '">' + (ds === t ? '<button type="button" class="sb-today" data-action="newLog" aria-label="今日の記録をしてシールをもらう">きょう</button>' : '<span class="sb-day">' + d + '</span>') + '</li>';
+      }
+    }
+    return '<section class="card sticker-book"><div class="row-between"><h2>' + esc(pet.name) + 'のシール帳 ' + m + '月</h2><span class="sb-count">' + count + '枚</span></div>' +
+      '<p class="small muted">記録した日にシールが1枚。お世話を全部できた日は金のシールになります。' + (gold ? '今月の金のシール ' + gold + '枚。' : '') + '</p>' +
+      '<ol class="sb-grid">' + ['日', '月', '火', '水', '木', '金', '土'].map((w) => '<li class="sb-wd" aria-hidden="true">' + w + '</li>').join('') + cells + '</ol></section>';
   }
   /* Atomsのように、数字の下に「次に何をするか」が分かる短い一文。病気の判断はしない */
   function weekMapHtml(pet) {

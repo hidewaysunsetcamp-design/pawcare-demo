@@ -856,3 +856,22 @@ input.haptic-input { -webkit-appearance: auto; appearance: auto; }
 .g-num span { font-size: .78rem; color: var(--muted); font-weight: 700; }
 @keyframes g-in { from { opacity: 0; transform: scale(.4); } }
 @media (prefers-reduced-motion: reduce) { .g-seg.on { animation: none; } }
+
+/* v1.18 シール帳（市松もようのマスに、記録した日のシールが貼られていく） */
+.sticker-book h2 { margin: 0; }
+.sb-count { font-weight: 800; color: var(--brand); font-size: 1.1rem; }
+.sb-grid { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; border-radius: 14px; overflow: hidden; }
+.sb-wd { text-align: center; font-size: .72rem; font-weight: 700; color: var(--muted); padding: 2px 0 4px; background: var(--card); }
+.sb-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #FFE1CF; position: relative; }
+.sb-cell.alt { background: var(--brand-bright); }
+.sb-cell.sb-pad { opacity: .35; }
+.sb-day { font-size: .78rem; font-weight: 800; color: rgba(31, 20, 16, .45); }
+.sb-cell.alt .sb-day { color: rgba(255, 246, 238, .8); }
+.sb-cell.future .sb-day { opacity: .45; }
+.sb-sticker { display: inline-flex; padding: 2px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px #1F1410, 0 3px 0 rgba(31, 20, 16, .35); transform: rotate(var(--r, 0deg)); }
+.sb-sticker .av { display: block; }
+.sb-cell.gold .sb-sticker { box-shadow: 0 0 0 2px #1F1410, 0 0 0 5px #F5B417, 0 4px 0 rgba(31, 20, 16, .35); }
+.sb-today { border: 2px dashed #1F1410; background: rgba(255, 255, 255, .7); border-radius: 50%; width: 82%; aspect-ratio: 1; font-size: .7rem; font-weight: 800; color: #1F1410; padding: 0; }
+.sb-cell.pop .sb-sticker { animation: sb-pop .55s cubic-bezier(.2, 1.7, .4, 1) both .2s; }
+@keyframes sb-pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } 60% { transform: scale(1.25) rotate(calc(var(--r, 0deg) + 6deg)); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sb-cell.pop .sb-sticker { animation: none; } }
